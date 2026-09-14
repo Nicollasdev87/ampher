@@ -1,0 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+/* Ativa o modo escuro via classe .dark em vez de preferência do sistema,
+   pra o usuário poder escolher manualmente dentro do app. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-display: "Barlow Condensed", sans-serif;
+  --font-sans: "Inter", sans-serif;
+
+  --color-ink: #15140f;
+  --color-ink-soft: #232019;
+  --color-paper: #fbfaf7;
+  --color-brass: #a9863c;
+  --color-brass-dark: #8a6c2f;
+  --color-sand: #efe6d2;
+  --color-graphite: #3a3a38;
+  --color-line: #e4dfd3;
+}
+
+/* Modo escuro: os mesmos tokens semânticos (ink, paper, brass...) são
+   redefinidos aqui. Como todo o app usa essas variáveis (bg-paper,
+   text-ink, border-line etc.), a troca de tema acontece sozinha em
+   qualquer tela, sem precisar de classes dark: espalhadas pelo código. */
+.dark {
+  --color-ink: #f3f1ea;
+  --color-ink-soft: #dcd9cd;
+  --color-paper: #17160f;
+  --color-brass: #c9a35f;
+  --color-brass-dark: #ddb877;
+  --color-sand: #2b2717;
+  --color-graphite: #a6a294;
+  --color-line: #322f24;
+}
+
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--color-sand);
+}
+
+input, select, textarea {
+  font-family: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: 0;
+}
