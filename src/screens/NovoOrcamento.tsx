@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '../components/Button'
 import { Field, NumberField, SelectField } from '../components/Field'
+import { PageHeader } from '../components/PageHeader'
 import type { Config, Dificuldade, ItemOrcamento, Orcamento, TipoOrcamento } from '../lib/types'
 import { calcularOrcamento, formatarMoeda, totalItem } from '../lib/calculo'
 import { criarOrcamento, getConfig, listarDificuldades, proximoNumeroOrcamento } from '../lib/api'
@@ -138,28 +139,31 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
 
   if (carregando) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-graphite text-sm">
+      <div className="min-h-[60vh] flex items-center justify-center text-graphite text-sm">
         Carregando…
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="px-6 py-6 sm:px-10 flex items-center justify-between">
-        <div>
-          <p className="text-[11px] tracking-[0.15em] text-brass">CRIAR ORÇAMENTO</p>
-        </div>
-        <div className="text-xs text-graphite tabular">Passo {Math.min(passo, 3)} de 3</div>
-      </header>
+    <div className="flex flex-col">
+      <PageHeader
+        eyebrow="CRIAR ORÇAMENTO"
+        onVoltar={passo < 4 ? onVoltar : undefined}
+        extra={
+          passo < 4 ? (
+            <span className="text-xs text-graphite tabular shrink-0">Passo {passo} de 3</span>
+          ) : undefined
+        }
+      />
 
       {erro && (
-        <div className="mx-6 sm:mx-10 mb-4 border border-red-200 bg-red-50 dark:bg-red-950/40 dark:border-red-900 text-red-700 dark:text-red-300 text-sm px-4 py-3">
+        <div className="mx-5 sm:mx-10 mb-4 border border-red-200 bg-red-50 dark:bg-red-950/40 dark:border-red-900 text-red-700 dark:text-red-300 text-sm px-4 py-3">
           {erro}
         </div>
       )}
 
-      <main className="flex-1 px-6 sm:px-10 pb-16">
+      <main className="flex-1 px-5 sm:px-10 pb-16">
         <div className="max-w-2xl mx-auto">
           {passo === 1 && (
             <section>
@@ -208,8 +212,8 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
                 </SelectField>
               </div>
 
-              <div className="mt-10 flex justify-end">
-                <Button disabled={!podeAvancarPasso1} onClick={() => setPasso(2)}>
+              <div className="mt-10 flex sm:justify-end">
+                <Button className="w-full sm:w-auto" disabled={!podeAvancarPasso1} onClick={() => setPasso(2)}>
                   Continuar
                 </Button>
               </div>
@@ -308,11 +312,11 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
                 + Adicionar outro item
               </button>
 
-              <div className="mt-10 flex justify-between">
-                <Button variant="ghost" onClick={() => setPasso(1)}>
+              <div className="mt-10 flex flex-col-reverse sm:flex-row sm:justify-between gap-3">
+                <Button className="w-full sm:w-auto" variant="ghost" onClick={() => setPasso(1)}>
                   Voltar
                 </Button>
-                <Button disabled={!podeAvancarPasso2} onClick={() => setPasso(3)}>
+                <Button className="w-full sm:w-auto" disabled={!podeAvancarPasso2} onClick={() => setPasso(3)}>
                   Continuar
                 </Button>
               </div>
@@ -383,11 +387,11 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
                 </div>
               </div>
 
-              <div className="mt-10 flex justify-between">
-                <Button variant="ghost" onClick={() => setPasso(2)}>
+              <div className="mt-10 flex flex-col-reverse sm:flex-row sm:justify-between gap-3">
+                <Button className="w-full sm:w-auto" variant="ghost" onClick={() => setPasso(2)}>
                   Voltar
                 </Button>
-                <Button onClick={finalizar} disabled={salvando}>
+                <Button className="w-full sm:w-auto" onClick={finalizar} disabled={salvando}>
                   {salvando ? 'Gerando…' : 'Finalizar e gerar PDF'}
                 </Button>
               </div>

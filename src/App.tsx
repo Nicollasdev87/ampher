@@ -7,13 +7,6 @@ import { Sidebar, type Tela } from './components/Sidebar'
 import { useDarkMode } from './hooks/useDarkMode'
 import logoIcon from './assets/logo-icon.png'
 
-const LABEL_MOBILE: Record<Tela, string> = {
-  home: 'Início',
-  novo: 'Criar orçamento',
-  buscar: 'Verificar orçamento',
-  config: 'Configurações',
-}
-
 function App() {
   const [tela, setTela] = useState<Tela>('home')
   const [menuAberto, setMenuAberto] = useState(false)
@@ -30,9 +23,9 @@ function App() {
         onFechar={() => setMenuAberto(false)}
       />
 
-      <div className="flex-1 min-w-0 flex flex-col sm:ml-0">
+      <div className="flex-1 min-w-0 flex flex-col">
         {/* Barra superior só no mobile — abre o menu lateral em cima do conteúdo */}
-        <div className="sm:hidden flex items-center justify-between px-5 py-4 border-b border-line">
+        <div className="sm:hidden flex items-center gap-3 px-5 pt-safe pb-4 border-b border-line">
           <button onClick={() => setMenuAberto(true)} className="p-1 -ml-1 text-ink" aria-label="Abrir menu">
             <IconeMenu />
           </button>
@@ -40,7 +33,6 @@ function App() {
             <img src={logoIcon} alt="Ampher" className="h-6 w-6 object-contain dark:invert" />
             <span className="font-display font-semibold text-sm tracking-wide">AMPHER</span>
           </button>
-          <span className="text-xs text-graphite w-16 text-right truncate">{LABEL_MOBILE[tela]}</span>
         </div>
 
         <div className="flex-1 min-w-0">

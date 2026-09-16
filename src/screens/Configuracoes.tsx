@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button } from '../components/Button'
 import { NumberField } from '../components/Field'
+import { PageHeader } from '../components/PageHeader'
 import type { Config, Dificuldade } from '../lib/types'
 import {
   atualizarConfig,
@@ -11,7 +12,7 @@ import {
   removerDificuldade,
 } from '../lib/api'
 
-export function Configuracoes({ onVoltar: _onVoltar }: { onVoltar: () => void }) {
+export function Configuracoes({ onVoltar }: { onVoltar: () => void }) {
   const [config, setConfig] = useState<Config | null>(null)
   const [dificuldades, setDificuldades] = useState<Dificuldade[]>([])
   const [carregando, setCarregando] = useState(true)
@@ -63,21 +64,19 @@ export function Configuracoes({ onVoltar: _onVoltar }: { onVoltar: () => void })
 
   if (carregando || !config) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-graphite text-sm">
+      <div className="min-h-[60vh] flex items-center justify-center text-graphite text-sm">
         Carregando…
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="px-6 py-6 sm:px-10">
-        <p className="text-[11px] tracking-[0.15em] text-brass">CONFIGURAÇÕES</p>
-      </header>
+    <div className="flex flex-col">
+      <PageHeader eyebrow="CONFIGURAÇÕES" onVoltar={onVoltar} />
 
-      <main className="flex-1 px-6 sm:px-10 pb-16">
+      <main className="flex-1 px-5 sm:px-10 pb-16">
         <div className="max-w-2xl mx-auto">
-          <h2 className="font-display font-semibold text-3xl mb-10">
+          <h2 className="font-display font-semibold text-2xl sm:text-3xl mb-10">
             Valores e níveis de dificuldade
           </h2>
 
@@ -108,7 +107,7 @@ export function Configuracoes({ onVoltar: _onVoltar }: { onVoltar: () => void })
               />
             </div>
             <div className="flex items-center gap-4">
-              <Button onClick={salvarConfig} disabled={salvandoConfig}>
+              <Button className="w-full sm:w-auto" onClick={salvarConfig} disabled={salvandoConfig}>
                 {salvandoConfig ? 'Salvando…' : 'Salvar valores'}
               </Button>
               {mensagem && <span className="text-sm text-brass">{mensagem}</span>}
@@ -131,7 +130,7 @@ export function Configuracoes({ onVoltar: _onVoltar }: { onVoltar: () => void })
               ))}
             </div>
 
-            <div className="flex items-end gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-4">
               <div className="flex-1">
                 <span className="block text-[11px] tracking-wide text-graphite mb-1.5">
                   Novo nível
@@ -143,10 +142,10 @@ export function Configuracoes({ onVoltar: _onVoltar }: { onVoltar: () => void })
                   className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink placeholder:text-graphite/40 focus:outline-none focus:border-brass transition-colors"
                 />
               </div>
-              <div className="w-32">
+              <div className="sm:w-32">
                 <NumberField label="Multiplicador" min={1} value={novoMultiplicador} onChange={setNovoMultiplicador} />
               </div>
-              <Button variant="secondary" onClick={adicionarDificuldade}>
+              <Button className="w-full sm:w-auto" variant="secondary" onClick={adicionarDificuldade}>
                 Adicionar
               </Button>
             </div>

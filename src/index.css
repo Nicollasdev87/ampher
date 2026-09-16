@@ -52,6 +52,7 @@ body {
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .font-display {
@@ -68,6 +69,34 @@ body {
 
 input, select, textarea {
   font-family: inherit;
+  /* Remove o arredondamento e a sombra padrão do Safari/iOS em inputs,
+     pra ficar igual em qualquer navegador/webview. */
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 0;
+}
+
+/* iOS dá zoom automático no campo quando o texto é menor que 16px.
+   Isso fica bem ruim dentro de um app empacotado (Android/iOS) — então
+   forçamos 16px nos campos em telas pequenas e voltamos ao normal a
+   partir do breakpoint sm (onde já não é mobile). */
+@media (max-width: 639px) {
+  input, select, textarea {
+    font-size: 16px;
+  }
+}
+
+/* Área segura do notch/status bar quando o app roda empacotado em
+   Android/iOS (Capacitor, Cordova, WebView nativo etc.). Em navegador
+   comum esses valores são 0 e não fazem diferença nenhuma. */
+.pt-safe {
+  padding-top: calc(1rem + env(safe-area-inset-top, 0px));
+}
+.pb-safe {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+.pl-safe {
+  padding-left: max(env(safe-area-inset-left), 0px);
 }
 
 ::-webkit-scrollbar {

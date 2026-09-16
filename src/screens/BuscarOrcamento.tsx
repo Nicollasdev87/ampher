@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '../components/Button'
 import { Field, NumberField, SelectField } from '../components/Field'
+import { PageHeader } from '../components/PageHeader'
 import type {
   Config,
   Dificuldade,
@@ -41,7 +42,7 @@ function StatusBadge({ status }: { status?: StatusOrcamento }) {
   )
 }
 
-export function BuscarOrcamento({ onVoltar: _onVoltar }: { onVoltar: () => void }) {
+export function BuscarOrcamento({ onVoltar: _onVoltarInicio }: { onVoltar: () => void }) {
   const [termo, setTermo] = useState('')
   const [resultados, setResultados] = useState<Orcamento[]>([])
   const [carregando, setCarregando] = useState(true)
@@ -223,16 +224,29 @@ export function BuscarOrcamento({ onVoltar: _onVoltar }: { onVoltar: () => void 
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="px-6 py-6 sm:px-10">
-        <p className="text-[11px] tracking-[0.15em] text-brass">VERIFICAR ORÇAMENTO</p>
-      </header>
+    <div className="flex flex-col">
+      {!selecionado && <PageHeader eyebrow="VERIFICAR ORÇAMENTO" />}
+      {selecionado && editando && (
+        <PageHeader
+          eyebrow={`EDITANDO ORÇAMENTO Nº ${String(selecionado.numero).padStart(4, '0')}`}
+          onVoltar={() => setEditando(false)}
+          labelVoltar="Cancelar edição"
+        />
+      )}
+      {selecionado && !editando && (
+        <PageHeader
+          eyebrow={`ORÇAMENTO Nº ${String(selecionado.numero).padStart(4, '0')}`}
+          onVoltar={() => setSelecionado(null)}
+          labelVoltar="Voltar para a busca"
+          extra={<StatusBadge status={selecionado.status} />}
+        />
+      )}
 
-      <main className="flex-1 px-6 sm:px-10 pb-16">
+      <main className="flex-1 px-5 sm:px-10 pb-16">
         <div className="max-w-3xl mx-auto">
           {!selecionado ? (
             <>
-              <h2 className="font-display font-semibold text-3xl mb-8">
+              <h2 className="font-display font-semibold text-2xl sm:text-3xl mb-8">
                 Encontre um orçamento
               </h2>
 
@@ -244,7 +258,7 @@ export function BuscarOrcamento({ onVoltar: _onVoltar }: { onVoltar: () => void 
                   pesquisar(e.target.value)
                 }}
                 placeholder="Nome do cliente ou número do orçamento"
-                className="w-full border-0 border-b-2 border-ink bg-transparent py-3 text-lg placeholder:text-graphite/40 focus:outline-none mb-8"
+                className="w-full border-0 border-b-2 border-ink bg-transparent py-3 text-base sm:text-lg placeholder:text-graphite/40 focus:outline-none mb-8"
               />
 
               {carregando ? (
@@ -257,19 +271,19 @@ export function BuscarOrcamento({ onVoltar: _onVoltar }: { onVoltar: () => void 
                     <button
                       key={o.id}
                       onClick={() => o.id && abrir(o.id)}
-                      className="w-full flex items-center justify-between py-4 text-left hover:bg-sand/40 px-2 transition-colors"
+                      className="w-full flex items-center justify-between gap-3 py-4 text-left hover:bg-sand/40 px-2 -mx-2 transition-colors"
                     >
-                      <div>
-                        <div className="font-medium text-ink flex items-center gap-2">
-                          {o.cliente_nome}
+                      <div className="min-w-0">
+                        <div className="font-medium text-ink flex flex-wrap items-center gap-2">
+                          <span className="truncate">{o.cliente_nome}</span>
                           <StatusBadge status={o.status} />
                         </div>
-                        <div className="text-xs text-graphite">
+                        <div className="text-xs text-graphite truncate">
                           Nº {String(o.numero).padStart(4, '0')} ·{' '}
                           {new Date(o.created_at ?? '').toLocaleDateString('pt-BR')} · {o.tipo}
                         </div>
                       </div>
-                      <div className="text-sm font-semibold tabular">
+                      <div className="text-sm font-semibold tabular shrink-0">
                         {formatarMoeda(o.total_geral)}
                       </div>
                     </button>
@@ -279,23 +293,13 @@ export function BuscarOrcamento({ onVoltar: _onVoltar }: { onVoltar: () => void 
             </>
           ) : editando ? (
             <>
-              <button
-                onClick={() => setEditando(false)}
-                className="text-sm text-graphite hover:text-ink mb-8"
-              >
-                ← Cancelar edição
-              </button>
-
-              <p className="text-[11px] tracking-[0.15em] text-brass mb-2">
-                EDITANDO ORÇAMENTO Nº {String(selecionado.numero).padStart(4, '0')}
-              </p>
-              <h2 className="font-display font-semibold text-3xl mb-8">{selecionado.cliente_nome}</h2>
-
               {erroEdicao && (
                 <div className="mb-6 border border-red-200 bg-red-50 dark:bg-red-950/40 dark:border-red-900 text-red-700 dark:text-red-300 text-sm px-4 py-3">
                   {erroEdicao}
                 </div>
               )}
+
+              <h2 className="font-display font-semibold text-2xl sm:text-3xl mb-8">{selecionado.cliente_nome}</h2>
 
               <div className="space-y-6 mb-10">
                 <Field label="Seu nome (responsável)" value={edResponsavel} onChange={(e) => setEdResponsavel(e.target.value)} />
@@ -377,32 +381,19 @@ export function BuscarOrcamento({ onVoltar: _onVoltar }: { onVoltar: () => void 
                 </div>
               )}
 
-              <div className="flex justify-between">
-                <Button variant="ghost" onClick={() => setEditando(false)}>Cancelar</Button>
-                <Button onClick={salvarEdicao} disabled={salvandoEdicao}>
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-3">
+                <Button className="w-full sm:w-auto" variant="ghost" onClick={() => setEditando(false)}>Cancelar</Button>
+                <Button className="w-full sm:w-auto" onClick={salvarEdicao} disabled={salvandoEdicao}>
                   {salvandoEdicao ? 'Salvando…' : 'Salvar alterações'}
                 </Button>
               </div>
             </>
           ) : (
             <>
-              <button
-                onClick={() => setSelecionado(null)}
-                className="text-sm text-graphite hover:text-ink mb-8"
-              >
-                ← Voltar para a busca
-              </button>
-
-              <div className="flex items-start justify-between gap-4 mb-1">
-                <p className="text-[11px] tracking-[0.15em] text-brass">
-                  ORÇAMENTO Nº {String(selecionado.numero).padStart(4, '0')}
-                </p>
-                <StatusBadge status={selecionado.status} />
-              </div>
-              <h2 className="font-display font-semibold text-3xl mb-1">
+              <h2 className="font-display font-semibold text-2xl sm:text-3xl mb-1">
                 {selecionado.cliente_nome}
               </h2>
-              <p className="text-sm text-graphite mb-6">
+              <p className="text-sm text-graphite mb-8">
                 {selecionado.observacoes || `Serviço de ${selecionado.tipo}`}
               </p>
 
@@ -419,67 +410,79 @@ export function BuscarOrcamento({ onVoltar: _onVoltar }: { onVoltar: () => void 
                 {salvandoStatus && <p className="text-[11px] text-graphite mt-1">Salvando…</p>}
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-x-8 gap-y-3 text-sm mb-8">
-                <InfoLinha label="Contato" valor={selecionado.cliente_contato} />
-                <InfoLinha label="Local do serviço" valor={selecionado.local_servico} />
-                <InfoLinha label="Responsável" valor={selecionado.responsavel} />
-                <InfoLinha
-                  label="Data"
-                  valor={new Date(selecionado.created_at ?? '').toLocaleDateString('pt-BR')}
-                />
-                <InfoLinha label="Dias de execução" valor={String(selecionado.dias)} />
-                <InfoLinha label="Técnicos" valor={String(selecionado.num_tecnicos)} />
+              <div className="border border-line p-5 mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                  <InfoLinha label="Contato" valor={selecionado.cliente_contato} />
+                  <InfoLinha label="Local do serviço" valor={selecionado.local_servico} />
+                  <InfoLinha label="Responsável" valor={selecionado.responsavel} />
+                  <InfoLinha
+                    label="Data"
+                    valor={new Date(selecionado.created_at ?? '').toLocaleDateString('pt-BR')}
+                  />
+                  <InfoLinha label="Dias de execução" valor={String(selecionado.dias)} />
+                  <InfoLinha label="Técnicos" valor={String(selecionado.num_tecnicos)} />
+                </div>
               </div>
 
-              <div className="border-t border-line pt-4 mb-8">
+              <div className="mb-8">
                 <p className="text-[11px] tracking-wide text-graphite mb-3">ITENS</p>
-                <div className="divide-y divide-line">
+                <div className="border border-line divide-y divide-line">
                   {selecionado.itens.map((item, idx) => (
-                    <div key={idx} className="flex justify-between py-2 text-sm">
-                      <span>
+                    <div key={idx} className="flex justify-between gap-3 py-3 px-4 text-sm">
+                      <span className="min-w-0 truncate">
                         {item.secao && <span className="text-graphite">[{item.secao}] </span>}
                         {item.descricao}
                       </span>
-                      <span className="tabular text-graphite">× {item.quantidade}</span>
+                      <span className="tabular text-graphite shrink-0">× {item.quantidade}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="border border-line p-5 mb-8">
+              <div className="border border-line p-5 mb-10">
                 <div className="flex justify-between font-display font-semibold text-lg">
                   <span>TOTAL GERAL</span>
                   <span className="tabular">{formatarMoeda(selecionado.total_geral)}</span>
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-3">
-                <Button onClick={baixar} disabled={baixando}>
+              <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3">
+                <Button className="w-full sm:w-auto" onClick={baixar} disabled={baixando}>
                   {baixando ? 'Gerando PDF…' : 'Baixar PDF novamente'}
                 </Button>
-                <Button variant="secondary" onClick={iniciarEdicao}>
+                <Button className="w-full sm:w-auto" variant="secondary" onClick={iniciarEdicao}>
                   Editar orçamento
                 </Button>
+              </div>
+
+              <div className="mt-6 pt-6 border-t border-line">
                 {!confirmandoExclusao ? (
-                  <Button variant="danger" onClick={() => setConfirmandoExclusao(true)}>
-                    Excluir orçamento
-                  </Button>
+                  <button
+                    onClick={() => setConfirmandoExclusao(true)}
+                    className="text-sm text-graphite hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                  >
+                    Excluir este orçamento
+                  </button>
                 ) : (
-                  <div className="flex items-center gap-3 border border-red-300 dark:border-red-900 px-4 py-2">
-                    <span className="text-sm text-red-700 dark:text-red-300">Tem certeza?</span>
-                    <button
-                      onClick={confirmarExclusao}
-                      disabled={excluindo}
-                      className="text-sm font-semibold text-red-700 dark:text-red-300 hover:underline"
-                    >
-                      {excluindo ? 'Excluindo…' : 'Sim, excluir'}
-                    </button>
-                    <button
-                      onClick={() => setConfirmandoExclusao(false)}
-                      className="text-sm text-graphite hover:text-ink"
-                    >
-                      Cancelar
-                    </button>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 border border-red-300 dark:border-red-900 px-4 py-3">
+                    <span className="text-sm text-red-700 dark:text-red-300">
+                      Excluir este orçamento? Essa ação não pode ser desfeita.
+                    </span>
+                    <div className="flex gap-3 sm:ml-auto shrink-0">
+                      <button
+                        onClick={() => setConfirmandoExclusao(false)}
+                        className="text-sm text-graphite hover:text-ink"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={confirmarExclusao}
+                        disabled={excluindo}
+                        className="text-sm font-semibold text-red-700 dark:text-red-300 hover:underline"
+                      >
+                        {excluindo ? 'Excluindo…' : 'Sim, excluir'}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

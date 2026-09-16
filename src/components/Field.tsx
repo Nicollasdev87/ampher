@@ -94,13 +94,24 @@ export function SelectField({
   return (
     <label className="block">
       <span className="block text-[11px] tracking-wide text-graphite mb-1.5">{label}</span>
-      <select
-        className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink focus:outline-none focus:border-brass transition-colors"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        {children}
-      </select>
+      <div className="relative">
+        <select
+          className="w-full border-0 border-b border-line bg-transparent py-2 pr-6 text-sm text-ink focus:outline-none focus:border-brass transition-colors"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          {children}
+        </select>
+        <IconeChevron className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-graphite" />
+      </div>
     </label>
+  )
+}
+
+function IconeChevron({ className = '' }: { className?: string }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
   )
 }
