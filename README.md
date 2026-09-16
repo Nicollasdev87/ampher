@@ -5,7 +5,10 @@ App simples para criar e consultar orçamentos da Ampher Engenharia & Automaçã
 ## O que o app faz
 
 - Tela inicial: **Criar orçamento** ou **Verificar orçamento**.
-- Criação de orçamento em 3 passos: dados gerais → itens (descrição, quantidade, valor unitário, nível de dificuldade) → logística (dias, técnicos, desconto, condições) e geração automática do PDF.
+- Criação de orçamento em 3 passos: dados gerais → itens (descrição, quantidade, valor unitário, nível de dificuldade, observação opcional) → logística (dias, técnicos, desconto, condições) e geração automática do PDF.
+- Campos em R$ são formatados automaticamente no padrão brasileiro enquanto a pessoa digita (ex: digitar "2500" já exibe "R$ 2.500,00").
+- Ao cadastrar um item, dá pra escolher um **item predefinido** (select agrupado por categoria) que já preenche a descrição e o valor unitário — os itens do catálogo são gerenciados pela tela de Configurações.
+- Cada item pode ter uma **observação** (até 200 caracteres), que também aparece no PDF, abaixo da descrição.
 - Busca de orçamentos por nome do cliente ou número.
 - Tela de **Configurações** para ajustar, sem mexer em código:
   - Valor do deslocamento (por dia)
@@ -13,6 +16,7 @@ App simples para criar e consultar orçamentos da Ampher Engenharia & Automaçã
   - Valor da diária técnica (por técnico, por dia)
   - Percentual da NFe embutido no total
   - Níveis de dificuldade e seus multiplicadores
+  - Itens predefinidos do catálogo (descrição + valor unitário), organizados por categoria
 - O **nível de dificuldade nunca aparece no PDF nem para o cliente** — ele só multiplica o valor unitário internamente, como margem de risco. O PDF mostra apenas o valor final já com isso embutido.
 - Não tem login nesta primeira versão — só pede o nome de quem está criando o orçamento.
 
@@ -20,7 +24,9 @@ App simples para criar e consultar orçamentos da Ampher Engenharia & Automaçã
 
 1. Crie um projeto em [supabase.com](https://supabase.com) (gratuito).
 2. Abra **SQL Editor** no painel do projeto.
-3. Cole todo o conteúdo do arquivo [`sql/schema.sql`](./sql/schema.sql) e rode. Isso cria as 4 tabelas (`config`, `dificuldades`, `orcamentos`, `itens_orcamento`), já com uma configuração inicial e 3 níveis de dificuldade de exemplo (edite os valores depois pela tela de Configurações do app).
+3. Cole todo o conteúdo do arquivo [`sql/schema.sql`](./sql/schema.sql) e rode. Isso cria as 5 tabelas (`config`, `dificuldades`, `orcamentos`, `itens_orcamento`, `itens_catalogo`), já com uma configuração inicial, 3 níveis de dificuldade e alguns itens de catálogo de exemplo (edite os valores depois pela tela de Configurações do app).
+
+   **Já tinha um banco criado antes dessa versão?** Não precisa rodar o `schema.sql` de novo — só rode [`sql/migration_catalogo_e_observacao.sql`](./sql/migration_catalogo_e_observacao.sql), que adiciona a tabela de catálogo e a coluna de observação sem afetar os dados existentes.
 4. Vá em **Project Settings → API** e copie:
    - **Project URL**
    - **anon public key**
@@ -85,8 +91,9 @@ Se a regra de negócio para deslocamento (por exemplo, se deveria multiplicar pe
 ```
 src/
   lib/
-    types.ts       → tipos de dados
+    types.ts        → tipos de dados
     calculo.ts      → toda a lógica de cálculo do orçamento
+    formatacao.ts   → formatação de moeda (R$), telefone e limites de texto
     api.ts          → funções que conversam com o Supabase
     pdf.ts          → geração do PDF
     supabase.ts     → cliente do Supabase
@@ -95,9 +102,11 @@ src/
     NovoOrcamento.tsx
     BuscarOrcamento.tsx
     Configuracoes.tsx
-  components/       → botões, campos de formulário, marca Ampher
+  components/       → botões, campos de formulário (Field, NumberField, MoneyField, SelectField…), marca Ampher
 sql/
-  schema.sql        → schema completo do banco (rodar uma vez no Supabase)
+  schema.sql                              → schema completo do banco (rodar uma vez, banco novo)
+  migration_status_secao.sql              → migração antiga (status + seção nos itens)
+  migration_catalogo_e_observacao.sql     → migração desta versão (catálogo de itens + observação por item)
 ```
 
 ## Próximos passos possíveis (fora do escopo desta versão)

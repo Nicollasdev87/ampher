@@ -161,9 +161,12 @@ export async function gerarPdfOrcamento(
       const dif = item.dificuldade_id ? mapaDificuldades.get(item.dificuldade_id) : undefined
       const valorUnitComRisco = dif ? item.valor_unitario * dif.multiplicador : item.valor_unitario
       const total = totalItem(item, dif)
+      const descricaoComObs = item.observacao?.trim()
+        ? `${item.descricao}\nObs: ${item.observacao.trim()}`
+        : item.descricao
       linhasItens.push([
         String(contador++).padStart(2, '0'),
-        item.descricao,
+        descricaoComObs,
         String(item.quantidade),
         formatarMoeda(valorUnitComRisco),
         formatarMoeda(total),

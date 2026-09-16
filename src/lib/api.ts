@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Config, Dificuldade, Orcamento, OrcamentoCompleto, ItemOrcamento } from './types'
+import type { Config, Dificuldade, Orcamento, OrcamentoCompleto, ItemOrcamento, ItemCatalogo } from './types'
 
 // ---------- Config ----------
 
@@ -58,6 +58,51 @@ export async function atualizarDificuldade(
 
 export async function removerDificuldade(id: string): Promise<void> {
   const { error } = await supabase.from('dificuldades').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ---------- Itens predefinidos (catálogo) ----------
+
+export async function listarItensCatalogo(): Promise<ItemCatalogo[]> {
+  const { data, error } = await supabase
+    .from('itens_catalogo')
+    .select('*')
+    .order('categoria', { ascending: true })
+    .order('nome', { ascending: true })
+  if (error) throw error
+  return data as ItemCatalogo[]
+}
+
+export async function criarItemCatalogo(
+  categoria: string,
+  nome: string,
+  valor_unitario: number
+): Promise<ItemCatalogo> {
+  const { data, error } = await supabase
+    .from('itens_catalogo')
+    .insert({ categoria, nome, valor_unitario })
+    .select()
+    .single()
+  if (error) throw error
+  return data as ItemCatalogo
+}
+
+export async function atualizarItemCatalogo(
+  id: string,
+  patch: Partial<Pick<ItemCatalogo, 'categoria' | 'nome' | 'valor_unitario'>>
+): Promise<ItemCatalogo> {
+  const { data, error } = await supabase
+    .from('itens_catalogo')
+    .update(patch)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data as ItemCatalogo
+}
+
+export async function removerItemCatalogo(id: string): Promise<void> {
+  const { error } = await supabase.from('itens_catalogo').delete().eq('id', id)
   if (error) throw error
 }
 

@@ -1,16 +1,36 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '../components/Button'
-import { Field, NumberField, PhoneField, SelectField } from '../components/Field'
+import { Field, MoneyField, NumberField, PhoneField, SelectField } from '../components/Field'
 import { PageHeader } from '../components/PageHeader'
-import type { Config, Dificuldade, ItemOrcamento, Orcamento, TipoOrcamento } from '../lib/types'
+import type { Config, Dificuldade, ItemCatalogo, ItemOrcamento, Orcamento, TipoOrcamento } from '../lib/types'
 import { calcularOrcamento, formatarMoeda, totalItem } from '../lib/calculo'
-import { VALOR_MAXIMO_REAIS } from '../lib/formatacao'
-import { criarOrcamento, getConfig, listarDificuldades, proximoNumeroOrcamento } from '../lib/api'
+import { OBSERVACAO_ITEM_MAXIMO, TEXTO_MAXIMO_PADRAO, VALOR_MAXIMO_REAIS } from '../lib/formatacao'
+import {
+  criarOrcamento,
+  getConfig,
+  listarDificuldades,
+  listarItensCatalogo,
+  proximoNumeroOrcamento,
+} from '../lib/api'
 import { baixarPdfOrcamento } from '../lib/pdf'
 
 type Passo = 1 | 2 | 3 | 4
 
 const TIPOS: TipoOrcamento[] = ['Elétrica', 'Mecânica', 'Outros']
+
+/**
+ * Agrupa os itens do catálogo por categoria, preservando a ordem em
+ * que cada categoria aparece (a lista já vem ordenada por categoria
+ * lá do banco).
+ */
+function agruparPorCategoria(itens: ItemCatalogo[]): Map<string, ItemCatalogo[]> {
+  const mapa = new Map<string, ItemCatalogo[]>()
+  for (const item of itens) {
+    if (!mapa.has(item.categoria)) mapa.set(item.categoria, [])
+    mapa.get(item.categoria)!.push(item)
+  }
+  return mapa
+}
 
 function novoItemVazio(dificuldadePadraoId: string | null, secao: string | null = null): ItemOrcamento {
   return {
@@ -20,6 +40,7 @@ function novoItemVazio(dificuldadePadraoId: string | null, secao: string | null 
     dificuldade_id: dificuldadePadraoId,
     ordem: 0,
     secao,
+    observacao: '',
   }
 }
 
@@ -31,6 +52,7 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
 
   const [config, setConfig] = useState<Config | null>(null)
   const [dificuldades, setDificuldades] = useState<Dificuldade[]>([])
+  const [itensCatalogo, setItensCatalogo] = useState<ItemCatalogo[]>([])
 
   // Dados do orçamento
   const [responsavel, setResponsavel] = useState('')
@@ -52,9 +74,14 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
   useEffect(() => {
     async function carregar() {
       try {
-        const [cfg, difs] = await Promise.all([getConfig(), listarDificuldades()])
+        const [cfg, difs, catalogo] = await Promise.all([
+          getConfig(),
+          listarDificuldades(),
+          listarItensCatalogo(),
+        ])
         setConfig(cfg)
         setDificuldades(difs)
+        setItensCatalogo(catalogo)
         const padrao = difs.find((d) => d.multiplicador === 1) ?? difs[0] ?? null
         setItens([novoItemVazio(padrao?.id ?? null)])
       } catch {
@@ -79,6 +106,9 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
     () => Array.from(new Set(itens.map((i) => i.secao?.trim()).filter((s): s is string => !!s))),
     [itens]
   )
+
+  const catalogoPorCategoria = useMemo(() => agruparPorCategoria(itensCatalogo), [itensCatalogo])
+  const mapaCatalogo = useMemo(() => new Map(itensCatalogo.map((i) => [i.id, i])), [itensCatalogo])
 
   function atualizarItem(idx: number, patch: Partial<ItemOrcamento>) {
     setItens((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)))
@@ -177,7 +207,7 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
                   value={responsavel}
                   onChange={(e) => setResponsavel(e.target.value)}
                   placeholder="Ex: Nicollas V."
-                  maxLength={80}
+                  maxLength={TEXTO_MAXIMO_PADRAO}
                 />
                 <div className="grid sm:grid-cols-2 gap-6">
                   <Field
@@ -185,7 +215,7 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
                     value={clienteNome}
                     onChange={(e) => setClienteNome(e.target.value)}
                     placeholder="Ex: Indústria Silva Ltda"
-                    maxLength={120}
+                    maxLength={TEXTO_MAXIMO_PADRAO}
                   />
                   <PhoneField label="Telefone de contato" value={clienteContato} onChange={setClienteContato} />
                 </div>
@@ -194,14 +224,14 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
                   value={localServico}
                   onChange={(e) => setLocalServico(e.target.value)}
                   placeholder="Ex: Goiânia, GO"
-                  maxLength={150}
+                  maxLength={TEXTO_MAXIMO_PADRAO}
                 />
                 <Field
                   label="Nome do projeto / serviço"
                   value={nomeProjeto}
                   onChange={(e) => setNomeProjeto(e.target.value)}
                   placeholder="Ex: Instalação de painel elétrico industrial"
-                  maxLength={150}
+                  maxLength={TEXTO_MAXIMO_PADRAO}
                 />
                 <SelectField label="Tipo de orçamento" value={tipo} onChange={(v) => setTipo(v as TipoOrcamento)}>
                   {TIPOS.map((t) => (
@@ -238,6 +268,33 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
               <div className="space-y-5">
                 {itens.map((item, idx) => (
                   <div key={idx} className="border border-line p-5 relative">
+                    {itensCatalogo.length > 0 && (
+                      <div className="mb-4">
+                        <SelectField
+                          label="Item predefinido (opcional — preenche descrição e valor)"
+                          value=""
+                          onChange={(v) => {
+                            const escolhido = mapaCatalogo.get(v)
+                            if (!escolhido) return
+                            atualizarItem(idx, {
+                              descricao: escolhido.nome,
+                              valor_unitario: escolhido.valor_unitario,
+                            })
+                          }}
+                        >
+                          <option value="">— Selecionar um item predefinido —</option>
+                          {Array.from(catalogoPorCategoria.entries()).map(([categoria, itensDaCategoria]) => (
+                            <optgroup key={categoria} label={categoria}>
+                              {itensDaCategoria.map((ic) => (
+                                <option key={ic.id} value={ic.id}>
+                                  {ic.nome}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </SelectField>
+                      </div>
+                    )}
                     <div className="grid sm:grid-cols-2 gap-4 mb-4">
                       <div>
                         <span className="block text-[11px] tracking-wide text-graphite mb-1.5">
@@ -248,7 +305,7 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
                           value={item.secao ?? ''}
                           onChange={(e) => atualizarItem(idx, { secao: e.target.value })}
                           placeholder="Ex: Quarto, Sala, Cozinha…"
-                          maxLength={40}
+                          maxLength={TEXTO_MAXIMO_PADRAO}
                           className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink placeholder:text-graphite/40 focus:outline-none focus:border-brass transition-colors"
                         />
                       </div>
@@ -257,19 +314,18 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
                         value={item.descricao}
                         onChange={(e) => atualizarItem(idx, { descricao: e.target.value })}
                         placeholder="Ex: Instalação de disjuntor trifásico"
-                        maxLength={200}
+                        maxLength={TEXTO_MAXIMO_PADRAO}
                       />
                     </div>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-3 gap-4 mb-4">
                       <NumberField
                         label="Quantidade"
                         min={0}
                         value={item.quantidade}
                         onChange={(v) => atualizarItem(idx, { quantidade: v })}
                       />
-                      <NumberField
+                      <MoneyField
                         label="Valor unitário (R$)"
-                        min={0}
                         max={VALOR_MAXIMO_REAIS}
                         value={item.valor_unitario}
                         onChange={(v) => atualizarItem(idx, { valor_unitario: v })}
@@ -286,6 +342,13 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
                         ))}
                       </SelectField>
                     </div>
+                    <Field
+                      label="Observação do item (opcional)"
+                      value={item.observacao ?? ''}
+                      onChange={(e) => atualizarItem(idx, { observacao: e.target.value })}
+                      placeholder="Ex: Inclui material, não inclui andaime…"
+                      maxLength={OBSERVACAO_ITEM_MAXIMO}
+                    />
                     <div className="flex justify-between items-center mt-4 pt-4 border-t border-line">
                       <span className="text-xs text-graphite">
                         Total do item:{' '}
@@ -342,9 +405,8 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
               </div>
 
               <div className="grid sm:grid-cols-2 gap-6 mb-6">
-                <NumberField
+                <MoneyField
                   label="Desconto (R$, opcional)"
-                  min={0}
                   max={VALOR_MAXIMO_REAIS}
                   value={desconto}
                   onChange={setDesconto}
@@ -354,7 +416,7 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
                   value={formaPagamento}
                   onChange={(e) => setFormaPagamento(e.target.value)}
                   placeholder="Ex: 50% entrada + 50% na entrega"
-                  maxLength={100}
+                  maxLength={TEXTO_MAXIMO_PADRAO}
                 />
               </div>
 

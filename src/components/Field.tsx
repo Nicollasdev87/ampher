@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type { InputHTMLAttributes, ReactNode } from 'react'
-import { formatarTelefone } from '../lib/formatacao'
+import {
+  formatarTelefone,
+  formatarValorDigitado,
+  numeroParaBufferDigitado,
+  valorDigitadoParaNumero,
+} from '../lib/formatacao'
 
 interface Props extends InputHTMLAttributes<HTMLInputElement> {
   label: string
@@ -82,6 +87,83 @@ export function NumberField({ label, value, onChange, min = 0, max, placeholder,
         onBlur={() => {
           focado.current = false
           setTexto(value === 0 ? '' : String(value))
+        }}
+        className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink placeholder:text-graphite/40 focus:outline-none focus:border-brass transition-colors tabular"
+      />
+      {hint && <span className="block text-[11px] text-graphite/70 mt-1">{hint}</span>}
+    </label>
+  )
+}
+
+interface MoneyFieldProps {
+  label: string
+  value: number
+  onChange: (v: number) => void
+  max?: number
+  placeholder?: string
+  hint?: string
+}
+
+/**
+ * Campo de valor em R$ que formata em tempo real, no padrão brasileiro
+ * (separador de milhar "." e 2 casas decimais com ","), enquanto a
+ * pessoa digita — sem esperar perder o foco.
+ *
+ * Ex: ao digitar "2500" o campo já mostra "R$ 2.500,00" na hora.
+ * Pra centavos diferentes de zero, basta digitar a vírgula (ex: "2500,9").
+ *
+ * Assim como o NumberField, quando `max` é definido o valor repassado
+ * pro `onChange` é limitado a ele; o campo "trava" no teto exibido ao
+ * perder o foco.
+ */
+export function MoneyField({ label, value, onChange, max, placeholder, hint }: MoneyFieldProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const focado = useRef(false)
+  const [texto, setTexto] = useState(() =>
+    value === 0 ? '' : formatarValorDigitado(numeroParaBufferDigitado(value))
+  )
+
+  useEffect(() => {
+    if (!focado.current) {
+      setTexto(value === 0 ? '' : formatarValorDigitado(numeroParaBufferDigitado(value)))
+    }
+  }, [value])
+
+  useEffect(() => {
+    if (focado.current && inputRef.current) {
+      const len = inputRef.current.value.length
+      inputRef.current.setSelectionRange(len, len)
+    }
+  }, [texto])
+
+  return (
+    <label className="block">
+      <span className="block text-[11px] tracking-wide text-graphite mb-1.5">{label}</span>
+      <input
+        ref={inputRef}
+        type="text"
+        inputMode="decimal"
+        value={texto}
+        placeholder={placeholder ?? 'R$ 0,00'}
+        onFocus={() => {
+          focado.current = true
+        }}
+        onChange={(e) => {
+          if (e.target.value === '') {
+            setTexto('')
+            onChange(0)
+            return
+          }
+          const formatado = formatarValorDigitado(e.target.value)
+          setTexto(formatado)
+          let novoValor = valorDigitadoParaNumero(e.target.value)
+          if (max !== undefined) novoValor = Math.min(max, novoValor)
+          onChange(novoValor)
+        }}
+        onBlur={() => {
+          focado.current = false
+          const valorFinal = max !== undefined ? Math.min(max, value) : value
+          setTexto(valorFinal === 0 ? '' : formatarValorDigitado(numeroParaBufferDigitado(valorFinal)))
         }}
         className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink placeholder:text-graphite/40 focus:outline-none focus:border-brass transition-colors tabular"
       />

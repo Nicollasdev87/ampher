@@ -89,10 +89,28 @@ create table if not exists itens_orcamento (
   dificuldade_id uuid references dificuldades (id) on delete set null,
   ordem integer not null default 0,
   secao text,
+  observacao text, -- comentário livre do item (aparece no PDF, abaixo da descrição)
   created_at timestamptz not null default now()
 );
 
 create index if not exists idx_itens_orcamento_orcamento_id on itens_orcamento (orcamento_id);
+
+-- ------------------------------------------------------------
+-- Tabela: itens_catalogo
+-- Itens predefinidos (descrição + valor unitário padrão), agrupados
+-- por categoria (texto livre, ex: "Elétrica", "Mecânica"). Usados no
+-- select de "item predefinido" ao montar um orçamento, pra padronizar
+-- descrições e preços. Editável pela tela de Configurações.
+-- ------------------------------------------------------------
+create table if not exists itens_catalogo (
+  id uuid primary key default gen_random_uuid(),
+  categoria text not null,
+  nome text not null,
+  valor_unitario numeric(12,2) not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_itens_catalogo_categoria on itens_catalogo (categoria);
 
 -- ============================================================
 -- Row Level Security
@@ -109,6 +127,7 @@ alter table config enable row level security;
 alter table dificuldades enable row level security;
 alter table orcamentos enable row level security;
 alter table itens_orcamento enable row level security;
+alter table itens_catalogo enable row level security;
 
 create policy "acesso total config" on config
   for all using (true) with check (true);
@@ -120,6 +139,9 @@ create policy "acesso total orcamentos" on orcamentos
   for all using (true) with check (true);
 
 create policy "acesso total itens_orcamento" on itens_orcamento
+  for all using (true) with check (true);
+
+create policy "acesso total itens_catalogo" on itens_catalogo
   for all using (true) with check (true);
 
 -- ============================================================
@@ -140,3 +162,14 @@ select * from (values
   ('Alta', 1.35)
 ) as v(nome, multiplicador)
 where not exists (select 1 from dificuldades);
+
+-- Itens de catálogo de exemplo — edite, renomeie ou apague pela tela de
+-- Configurações (aba "Itens predefinidos").
+insert into itens_catalogo (categoria, nome, valor_unitario)
+select * from (values
+  ('Elétrica', 'Instalação de disjuntor monofásico', 80.00),
+  ('Elétrica', 'Instalação de disjuntor trifásico', 150.00),
+  ('Elétrica', 'Instalação de tomada 20A', 60.00),
+  ('Mecânica', 'Manutenção preventiva de motor', 250.00)
+) as v(categoria, nome, valor_unitario)
+where not exists (select 1 from itens_catalogo);

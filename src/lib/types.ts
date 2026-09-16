@@ -36,6 +36,22 @@ export interface ItemOrcamento {
   dificuldade_id: string | null
   ordem: number
   secao?: string | null
+  observacao?: string | null
+}
+
+/**
+ * Item predefinido do catálogo (Configurações → Itens predefinidos).
+ * Serve pra padronizar descrição + valor unitário na hora de montar um
+ * orçamento — a pessoa escolhe no select e os campos já vêm preenchidos.
+ * `categoria` é texto livre (ex: "Elétrica", "Mecânica") pra permitir
+ * criar novas categorias sem precisar mexer em código.
+ */
+export interface ItemCatalogo {
+  id: string
+  categoria: string
+  nome: string
+  valor_unitario: number
+  created_at?: string
 }
 
 export interface Orcamento {

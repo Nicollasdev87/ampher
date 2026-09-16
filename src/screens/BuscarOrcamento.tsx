@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '../components/Button'
-import { Field, NumberField, PhoneField, SelectField } from '../components/Field'
+import { Field, MoneyField, NumberField, PhoneField, SelectField } from '../components/Field'
 import { PageHeader } from '../components/PageHeader'
 import type {
   Config,
   Dificuldade,
+  ItemCatalogo,
   ItemOrcamento,
   Orcamento,
   OrcamentoCompleto,
@@ -20,12 +21,22 @@ import {
   excluirOrcamento,
   getConfig,
   listarDificuldades,
+  listarItensCatalogo,
 } from '../lib/api'
 import { calcularOrcamento, formatarMoeda, totalItem } from '../lib/calculo'
-import { VALOR_MAXIMO_REAIS } from '../lib/formatacao'
+import { OBSERVACAO_ITEM_MAXIMO, TEXTO_MAXIMO_PADRAO, VALOR_MAXIMO_REAIS } from '../lib/formatacao'
 import { baixarPdfOrcamento } from '../lib/pdf'
 
 const TIPOS: TipoOrcamento[] = ['Elétrica', 'Mecânica', 'Outros']
+
+function agruparPorCategoria(itens: ItemCatalogo[]): Map<string, ItemCatalogo[]> {
+  const mapa = new Map<string, ItemCatalogo[]>()
+  for (const item of itens) {
+    if (!mapa.has(item.categoria)) mapa.set(item.categoria, [])
+    mapa.get(item.categoria)!.push(item)
+  }
+  return mapa
+}
 
 const STATUS_ESTILO: Record<StatusOrcamento, string> = {
   pendente: 'bg-brass/15 text-brass-dark',
@@ -50,6 +61,7 @@ export function BuscarOrcamento({ onVoltar: _onVoltarInicio }: { onVoltar: () =>
   const [selecionado, setSelecionado] = useState<OrcamentoCompleto | null>(null)
   const [dificuldades, setDificuldades] = useState<Dificuldade[]>([])
   const [config, setConfig] = useState<Config | null>(null)
+  const [itensCatalogo, setItensCatalogo] = useState<ItemCatalogo[]>([])
   const [baixando, setBaixando] = useState(false)
   const [excluindo, setExcluindo] = useState(false)
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false)
@@ -74,14 +86,18 @@ export function BuscarOrcamento({ onVoltar: _onVoltarInicio }: { onVoltar: () =>
   const [edGarantiaServico, setEdGarantiaServico] = useState('')
 
   useEffect(() => {
-    Promise.all([listarDificuldades(), getConfig()])
-      .then(([difs, cfg]) => {
+    Promise.all([listarDificuldades(), getConfig(), listarItensCatalogo()])
+      .then(([difs, cfg, catalogo]) => {
         setDificuldades(difs)
         setConfig(cfg)
+        setItensCatalogo(catalogo)
       })
       .catch(() => {})
     pesquisar('')
   }, [])
+
+  const catalogoPorCategoria = useMemo(() => agruparPorCategoria(itensCatalogo), [itensCatalogo])
+  const mapaCatalogo = useMemo(() => new Map(itensCatalogo.map((i) => [i.id, i])), [itensCatalogo])
 
   async function pesquisar(t: string) {
     setCarregando(true)
@@ -303,13 +319,13 @@ export function BuscarOrcamento({ onVoltar: _onVoltarInicio }: { onVoltar: () =>
               <h2 className="font-display font-semibold text-2xl sm:text-3xl mb-8">{selecionado.cliente_nome}</h2>
 
               <div className="space-y-6 mb-10">
-                <Field label="Seu nome (responsável)" value={edResponsavel} onChange={(e) => setEdResponsavel(e.target.value)} maxLength={80} />
+                <Field label="Seu nome (responsável)" value={edResponsavel} onChange={(e) => setEdResponsavel(e.target.value)} maxLength={TEXTO_MAXIMO_PADRAO} />
                 <div className="grid sm:grid-cols-2 gap-6">
-                  <Field label="Nome do cliente / empresa" value={edClienteNome} onChange={(e) => setEdClienteNome(e.target.value)} maxLength={120} />
+                  <Field label="Nome do cliente / empresa" value={edClienteNome} onChange={(e) => setEdClienteNome(e.target.value)} maxLength={TEXTO_MAXIMO_PADRAO} />
                   <PhoneField label="Telefone de contato" value={edClienteContato} onChange={setEdClienteContato} />
                 </div>
-                <Field label="Local do serviço" value={edLocalServico} onChange={(e) => setEdLocalServico(e.target.value)} maxLength={150} />
-                <Field label="Nome do projeto / serviço" value={edNomeProjeto} onChange={(e) => setEdNomeProjeto(e.target.value)} maxLength={150} />
+                <Field label="Local do serviço" value={edLocalServico} onChange={(e) => setEdLocalServico(e.target.value)} maxLength={TEXTO_MAXIMO_PADRAO} />
+                <Field label="Nome do projeto / serviço" value={edNomeProjeto} onChange={(e) => setEdNomeProjeto(e.target.value)} maxLength={TEXTO_MAXIMO_PADRAO} />
                 <SelectField label="Tipo de orçamento" value={edTipo} onChange={(v) => setEdTipo(v as TipoOrcamento)}>
                   {TIPOS.map((t) => (
                     <option key={t} value={t}>{t}</option>
@@ -321,6 +337,31 @@ export function BuscarOrcamento({ onVoltar: _onVoltarInicio }: { onVoltar: () =>
               <div className="space-y-5 mb-4">
                 {edItens.map((item, idx) => (
                   <div key={idx} className="border border-line p-5">
+                    {itensCatalogo.length > 0 && (
+                      <div className="mb-4">
+                        <SelectField
+                          label="Item predefinido (opcional — preenche descrição e valor)"
+                          value=""
+                          onChange={(v) => {
+                            const escolhido = mapaCatalogo.get(v)
+                            if (!escolhido) return
+                            atualizarEdItem(idx, {
+                              descricao: escolhido.nome,
+                              valor_unitario: escolhido.valor_unitario,
+                            })
+                          }}
+                        >
+                          <option value="">— Selecionar um item predefinido —</option>
+                          {Array.from(catalogoPorCategoria.entries()).map(([categoria, itensDaCategoria]) => (
+                            <optgroup key={categoria} label={categoria}>
+                              {itensDaCategoria.map((ic) => (
+                                <option key={ic.id} value={ic.id}>{ic.nome}</option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </SelectField>
+                      </div>
+                    )}
                     <div className="grid sm:grid-cols-2 gap-4 mb-4">
                       <div>
                         <span className="block text-[11px] tracking-wide text-graphite mb-1.5">Seção (opcional)</span>
@@ -328,21 +369,28 @@ export function BuscarOrcamento({ onVoltar: _onVoltarInicio }: { onVoltar: () =>
                           value={item.secao ?? ''}
                           onChange={(e) => atualizarEdItem(idx, { secao: e.target.value })}
                           placeholder="Ex: Quarto, Sala…"
-                          maxLength={40}
+                          maxLength={TEXTO_MAXIMO_PADRAO}
                           className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink placeholder:text-graphite/40 focus:outline-none focus:border-brass transition-colors"
                         />
                       </div>
-                      <Field label="Descrição" value={item.descricao} onChange={(e) => atualizarEdItem(idx, { descricao: e.target.value })} maxLength={200} />
+                      <Field label="Descrição" value={item.descricao} onChange={(e) => atualizarEdItem(idx, { descricao: e.target.value })} maxLength={TEXTO_MAXIMO_PADRAO} />
                     </div>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-3 gap-4 mb-4">
                       <NumberField label="Quantidade" min={0} value={item.quantidade} onChange={(v) => atualizarEdItem(idx, { quantidade: v })} />
-                      <NumberField label="Valor unitário (R$)" min={0} max={VALOR_MAXIMO_REAIS} value={item.valor_unitario} onChange={(v) => atualizarEdItem(idx, { valor_unitario: v })} />
+                      <MoneyField label="Valor unitário (R$)" max={VALOR_MAXIMO_REAIS} value={item.valor_unitario} onChange={(v) => atualizarEdItem(idx, { valor_unitario: v })} />
                       <SelectField label="Dificuldade" value={item.dificuldade_id ?? ''} onChange={(v) => atualizarEdItem(idx, { dificuldade_id: v })}>
                         {dificuldades.map((d) => (
                           <option key={d.id} value={d.id}>{d.nome}</option>
                         ))}
                       </SelectField>
                     </div>
+                    <Field
+                      label="Observação do item (opcional)"
+                      value={item.observacao ?? ''}
+                      onChange={(e) => atualizarEdItem(idx, { observacao: e.target.value })}
+                      placeholder="Ex: Inclui material, não inclui andaime…"
+                      maxLength={OBSERVACAO_ITEM_MAXIMO}
+                    />
                     <div className="flex justify-between items-center mt-4 pt-4 border-t border-line">
                       <span className="text-xs text-graphite">
                         Total do item:{' '}
@@ -366,8 +414,8 @@ export function BuscarOrcamento({ onVoltar: _onVoltarInicio }: { onVoltar: () =>
                 <NumberField label="Número de técnicos" min={1} value={edNumTecnicos} onChange={setEdNumTecnicos} />
               </div>
               <div className="grid sm:grid-cols-2 gap-6 mb-6">
-                <NumberField label="Desconto (R$)" min={0} max={VALOR_MAXIMO_REAIS} value={edDesconto} onChange={setEdDesconto} />
-                <Field label="Forma de pagamento" value={edFormaPagamento} onChange={(e) => setEdFormaPagamento(e.target.value)} maxLength={100} />
+                <MoneyField label="Desconto (R$)" max={VALOR_MAXIMO_REAIS} value={edDesconto} onChange={setEdDesconto} />
+                <Field label="Forma de pagamento" value={edFormaPagamento} onChange={(e) => setEdFormaPagamento(e.target.value)} maxLength={TEXTO_MAXIMO_PADRAO} />
               </div>
               <div className="grid sm:grid-cols-2 gap-6 mb-8">
                 <Field label="Prazo de execução" value={edPrazoExecucao} onChange={(e) => setEdPrazoExecucao(e.target.value)} maxLength={60} />
@@ -431,9 +479,16 @@ export function BuscarOrcamento({ onVoltar: _onVoltarInicio }: { onVoltar: () =>
                 <div className="border border-line divide-y divide-line">
                   {selecionado.itens.map((item, idx) => (
                     <div key={idx} className="flex justify-between gap-3 py-3 px-4 text-sm">
-                      <span className="min-w-0 truncate">
-                        {item.secao && <span className="text-graphite">[{item.secao}] </span>}
-                        {item.descricao}
+                      <span className="min-w-0">
+                        <span className="block truncate">
+                          {item.secao && <span className="text-graphite">[{item.secao}] </span>}
+                          {item.descricao}
+                        </span>
+                        {item.observacao && (
+                          <span className="block text-[11px] text-graphite/80 truncate">
+                            Obs: {item.observacao}
+                          </span>
+                        )}
                       </span>
                       <span className="tabular text-graphite shrink-0">× {item.quantidade}</span>
                     </div>
