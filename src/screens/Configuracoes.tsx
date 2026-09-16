@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '../components/Button'
 import { NumberField } from '../components/Field'
 import { PageHeader } from '../components/PageHeader'
+import { VALOR_MAXIMO_REAIS } from '../lib/formatacao'
 import type { Config, Dificuldade } from '../lib/types'
 import {
   atualizarConfig,
@@ -87,21 +88,25 @@ export function Configuracoes({ onVoltar }: { onVoltar: () => void }) {
             <div className="grid sm:grid-cols-2 gap-6 mb-6">
               <NumberField
                 label="Deslocamento por dia (R$)"
+                max={VALOR_MAXIMO_REAIS}
                 value={config.valor_deslocamento}
                 onChange={(v) => setConfig({ ...config, valor_deslocamento: v })}
               />
               <NumberField
                 label="Refeição por técnico/dia (R$)"
+                max={VALOR_MAXIMO_REAIS}
                 value={config.valor_refeicao}
                 onChange={(v) => setConfig({ ...config, valor_refeicao: v })}
               />
               <NumberField
                 label="Diária por técnico (R$)"
+                max={VALOR_MAXIMO_REAIS}
                 value={config.valor_diaria_tecnico}
                 onChange={(v) => setConfig({ ...config, valor_diaria_tecnico: v })}
               />
               <NumberField
                 label="NFe embutida (%)"
+                max={100}
                 value={config.percentual_nfe}
                 onChange={(v) => setConfig({ ...config, percentual_nfe: v })}
               />
@@ -139,6 +144,7 @@ export function Configuracoes({ onVoltar }: { onVoltar: () => void }) {
                   value={novoNome}
                   onChange={(e) => setNovoNome(e.target.value)}
                   placeholder="Ex: Alta complexidade"
+                  maxLength={40}
                   className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink placeholder:text-graphite/40 focus:outline-none focus:border-brass transition-colors"
                 />
               </div>
@@ -174,6 +180,7 @@ function LinhaDificuldade({
       <input
         value={nome}
         onChange={(e) => setNome(e.target.value)}
+        maxLength={40}
         className="flex-1 border-0 bg-transparent text-sm focus:outline-none"
       />
       <input

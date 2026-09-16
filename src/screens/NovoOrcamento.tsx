@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '../components/Button'
-import { Field, NumberField, SelectField } from '../components/Field'
+import { Field, NumberField, PhoneField, SelectField } from '../components/Field'
 import { PageHeader } from '../components/PageHeader'
 import type { Config, Dificuldade, ItemOrcamento, Orcamento, TipoOrcamento } from '../lib/types'
 import { calcularOrcamento, formatarMoeda, totalItem } from '../lib/calculo'
+import { VALOR_MAXIMO_REAIS } from '../lib/formatacao'
 import { criarOrcamento, getConfig, listarDificuldades, proximoNumeroOrcamento } from '../lib/api'
 import { baixarPdfOrcamento } from '../lib/pdf'
 
@@ -176,6 +177,7 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
                   value={responsavel}
                   onChange={(e) => setResponsavel(e.target.value)}
                   placeholder="Ex: Nicollas V."
+                  maxLength={80}
                 />
                 <div className="grid sm:grid-cols-2 gap-6">
                   <Field
@@ -183,25 +185,23 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
                     value={clienteNome}
                     onChange={(e) => setClienteNome(e.target.value)}
                     placeholder="Ex: Indústria Silva Ltda"
+                    maxLength={120}
                   />
-                  <Field
-                    label="Contato (telefone ou e-mail)"
-                    value={clienteContato}
-                    onChange={(e) => setClienteContato(e.target.value)}
-                    placeholder="Ex: (62) 99999-0000"
-                  />
+                  <PhoneField label="Telefone de contato" value={clienteContato} onChange={setClienteContato} />
                 </div>
                 <Field
                   label="Local do serviço"
                   value={localServico}
                   onChange={(e) => setLocalServico(e.target.value)}
                   placeholder="Ex: Goiânia, GO"
+                  maxLength={150}
                 />
                 <Field
                   label="Nome do projeto / serviço"
                   value={nomeProjeto}
                   onChange={(e) => setNomeProjeto(e.target.value)}
                   placeholder="Ex: Instalação de painel elétrico industrial"
+                  maxLength={150}
                 />
                 <SelectField label="Tipo de orçamento" value={tipo} onChange={(v) => setTipo(v as TipoOrcamento)}>
                   {TIPOS.map((t) => (
@@ -248,6 +248,7 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
                           value={item.secao ?? ''}
                           onChange={(e) => atualizarItem(idx, { secao: e.target.value })}
                           placeholder="Ex: Quarto, Sala, Cozinha…"
+                          maxLength={40}
                           className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink placeholder:text-graphite/40 focus:outline-none focus:border-brass transition-colors"
                         />
                       </div>
@@ -256,6 +257,7 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
                         value={item.descricao}
                         onChange={(e) => atualizarItem(idx, { descricao: e.target.value })}
                         placeholder="Ex: Instalação de disjuntor trifásico"
+                        maxLength={200}
                       />
                     </div>
                     <div className="grid grid-cols-3 gap-4">
@@ -268,6 +270,7 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
                       <NumberField
                         label="Valor unitário (R$)"
                         min={0}
+                        max={VALOR_MAXIMO_REAIS}
                         value={item.valor_unitario}
                         onChange={(v) => atualizarItem(idx, { valor_unitario: v })}
                       />
@@ -342,6 +345,7 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
                 <NumberField
                   label="Desconto (R$, opcional)"
                   min={0}
+                  max={VALOR_MAXIMO_REAIS}
                   value={desconto}
                   onChange={setDesconto}
                 />
@@ -350,6 +354,7 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
                   value={formaPagamento}
                   onChange={(e) => setFormaPagamento(e.target.value)}
                   placeholder="Ex: 50% entrada + 50% na entrega"
+                  maxLength={100}
                 />
               </div>
 
@@ -359,12 +364,14 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
                   value={prazoExecucao}
                   onChange={(e) => setPrazoExecucao(e.target.value)}
                   placeholder="Ex: 5 dias úteis"
+                  maxLength={60}
                 />
                 <Field
                   label="Garantia do serviço"
                   value={garantiaServico}
                   onChange={(e) => setGarantiaServico(e.target.value)}
                   placeholder="Ex: 90 dias"
+                  maxLength={60}
                 />
               </div>
 

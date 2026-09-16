@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from 'react'
 
 interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-ghost'
 }
 
 export function Button({ variant = 'primary', className = '', ...props }: Props) {
@@ -13,6 +13,7 @@ export function Button({ variant = 'primary', className = '', ...props }: Props)
     secondary: 'bg-transparent text-ink border border-ink hover:bg-ink hover:text-paper',
     ghost: 'bg-transparent text-graphite hover:text-ink',
     danger: 'bg-transparent text-red-600 dark:text-red-400 border border-red-300 dark:border-red-900 hover:bg-red-600 hover:text-white hover:border-red-600',
+    'danger-ghost': 'bg-transparent text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-500/10',
   }
 
   return <button className={`${base} ${variants[variant]} ${className}`} {...props} />

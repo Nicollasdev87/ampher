@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { InputHTMLAttributes, ReactNode } from 'react'
+import { formatarTelefone } from '../lib/formatacao'
 
 interface Props extends InputHTMLAttributes<HTMLInputElement> {
   label: string
@@ -24,6 +25,7 @@ interface NumberFieldProps {
   value: number
   onChange: (v: number) => void
   min?: number
+  max?: number
   placeholder?: string
   hint?: string
 }
@@ -41,10 +43,15 @@ interface NumberFieldProps {
  * fica vazio quando o valor é 0, aceitamos vírgula ou ponto como
  * separador decimal, e só convertemos pra número no onChange —
  * sem nunca forçar um "0" de volta pro campo enquanto o usuário digita.
+ *
+ * Quando `max` é definido, o valor é limitado a ele (ex: campos em R$
+ * ficam limitados a 999.999,99) — o campo "trava" no teto ao perder o
+ * foco, mesmo que a pessoa tenha digitado mais dígitos que isso.
  */
-export function NumberField({ label, value, onChange, min = 0, placeholder, hint }: NumberFieldProps) {
+export function NumberField({ label, value, onChange, min = 0, max, placeholder, hint }: NumberFieldProps) {
   const [texto, setTexto] = useState(value === 0 ? '' : String(value))
   const focado = useRef(false)
+  const maxLength = max !== undefined ? String(Math.trunc(max)).length + 3 : undefined
 
   useEffect(() => {
     if (!focado.current) {
@@ -60,6 +67,7 @@ export function NumberField({ label, value, onChange, min = 0, placeholder, hint
         inputMode="decimal"
         value={texto}
         placeholder={placeholder ?? '0'}
+        maxLength={maxLength}
         onFocus={() => {
           focado.current = true
         }}
@@ -67,12 +75,46 @@ export function NumberField({ label, value, onChange, min = 0, placeholder, hint
           const limpo = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.')
           setTexto(limpo)
           const num = parseFloat(limpo)
-          onChange(Number.isNaN(num) ? 0 : Math.max(min, num))
+          let novoValor = Number.isNaN(num) ? 0 : Math.max(min, num)
+          if (max !== undefined) novoValor = Math.min(max, novoValor)
+          onChange(novoValor)
         }}
         onBlur={() => {
           focado.current = false
           setTexto(value === 0 ? '' : String(value))
         }}
+        className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink placeholder:text-graphite/40 focus:outline-none focus:border-brass transition-colors tabular"
+      />
+      {hint && <span className="block text-[11px] text-graphite/70 mt-1">{hint}</span>}
+    </label>
+  )
+}
+
+interface PhoneFieldProps {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  hint?: string
+}
+
+/**
+ * Campo de telefone: só aceita dígitos (letras e símbolos digitados são
+ * descartados) e formata automaticamente no padrão brasileiro —
+ * (XX) XXXXX-XXXX pra celular ou (XX) XXXX-XXXX pra fixo — enquanto a
+ * pessoa digita.
+ */
+export function PhoneField({ label, value, onChange, hint }: PhoneFieldProps) {
+  return (
+    <label className="block">
+      <span className="block text-[11px] tracking-wide text-graphite mb-1.5">{label}</span>
+      <input
+        type="tel"
+        inputMode="numeric"
+        autoComplete="tel"
+        value={value}
+        placeholder="(62) 99999-0000"
+        maxLength={15}
+        onChange={(e) => onChange(formatarTelefone(e.target.value))}
         className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink placeholder:text-graphite/40 focus:outline-none focus:border-brass transition-colors tabular"
       />
       {hint && <span className="block text-[11px] text-graphite/70 mt-1">{hint}</span>}

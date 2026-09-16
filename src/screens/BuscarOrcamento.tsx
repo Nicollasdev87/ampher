@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '../components/Button'
-import { Field, NumberField, SelectField } from '../components/Field'
+import { Field, NumberField, PhoneField, SelectField } from '../components/Field'
 import { PageHeader } from '../components/PageHeader'
 import type {
   Config,
@@ -22,6 +22,7 @@ import {
   listarDificuldades,
 } from '../lib/api'
 import { calcularOrcamento, formatarMoeda, totalItem } from '../lib/calculo'
+import { VALOR_MAXIMO_REAIS } from '../lib/formatacao'
 import { baixarPdfOrcamento } from '../lib/pdf'
 
 const TIPOS: TipoOrcamento[] = ['Elétrica', 'Mecânica', 'Outros']
@@ -302,13 +303,13 @@ export function BuscarOrcamento({ onVoltar: _onVoltarInicio }: { onVoltar: () =>
               <h2 className="font-display font-semibold text-2xl sm:text-3xl mb-8">{selecionado.cliente_nome}</h2>
 
               <div className="space-y-6 mb-10">
-                <Field label="Seu nome (responsável)" value={edResponsavel} onChange={(e) => setEdResponsavel(e.target.value)} />
+                <Field label="Seu nome (responsável)" value={edResponsavel} onChange={(e) => setEdResponsavel(e.target.value)} maxLength={80} />
                 <div className="grid sm:grid-cols-2 gap-6">
-                  <Field label="Nome do cliente / empresa" value={edClienteNome} onChange={(e) => setEdClienteNome(e.target.value)} />
-                  <Field label="Contato" value={edClienteContato} onChange={(e) => setEdClienteContato(e.target.value)} />
+                  <Field label="Nome do cliente / empresa" value={edClienteNome} onChange={(e) => setEdClienteNome(e.target.value)} maxLength={120} />
+                  <PhoneField label="Telefone de contato" value={edClienteContato} onChange={setEdClienteContato} />
                 </div>
-                <Field label="Local do serviço" value={edLocalServico} onChange={(e) => setEdLocalServico(e.target.value)} />
-                <Field label="Nome do projeto / serviço" value={edNomeProjeto} onChange={(e) => setEdNomeProjeto(e.target.value)} />
+                <Field label="Local do serviço" value={edLocalServico} onChange={(e) => setEdLocalServico(e.target.value)} maxLength={150} />
+                <Field label="Nome do projeto / serviço" value={edNomeProjeto} onChange={(e) => setEdNomeProjeto(e.target.value)} maxLength={150} />
                 <SelectField label="Tipo de orçamento" value={edTipo} onChange={(v) => setEdTipo(v as TipoOrcamento)}>
                   {TIPOS.map((t) => (
                     <option key={t} value={t}>{t}</option>
@@ -327,14 +328,15 @@ export function BuscarOrcamento({ onVoltar: _onVoltarInicio }: { onVoltar: () =>
                           value={item.secao ?? ''}
                           onChange={(e) => atualizarEdItem(idx, { secao: e.target.value })}
                           placeholder="Ex: Quarto, Sala…"
+                          maxLength={40}
                           className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink placeholder:text-graphite/40 focus:outline-none focus:border-brass transition-colors"
                         />
                       </div>
-                      <Field label="Descrição" value={item.descricao} onChange={(e) => atualizarEdItem(idx, { descricao: e.target.value })} />
+                      <Field label="Descrição" value={item.descricao} onChange={(e) => atualizarEdItem(idx, { descricao: e.target.value })} maxLength={200} />
                     </div>
                     <div className="grid grid-cols-3 gap-4">
                       <NumberField label="Quantidade" min={0} value={item.quantidade} onChange={(v) => atualizarEdItem(idx, { quantidade: v })} />
-                      <NumberField label="Valor unitário (R$)" min={0} value={item.valor_unitario} onChange={(v) => atualizarEdItem(idx, { valor_unitario: v })} />
+                      <NumberField label="Valor unitário (R$)" min={0} max={VALOR_MAXIMO_REAIS} value={item.valor_unitario} onChange={(v) => atualizarEdItem(idx, { valor_unitario: v })} />
                       <SelectField label="Dificuldade" value={item.dificuldade_id ?? ''} onChange={(v) => atualizarEdItem(idx, { dificuldade_id: v })}>
                         {dificuldades.map((d) => (
                           <option key={d.id} value={d.id}>{d.nome}</option>
@@ -364,12 +366,12 @@ export function BuscarOrcamento({ onVoltar: _onVoltarInicio }: { onVoltar: () =>
                 <NumberField label="Número de técnicos" min={1} value={edNumTecnicos} onChange={setEdNumTecnicos} />
               </div>
               <div className="grid sm:grid-cols-2 gap-6 mb-6">
-                <NumberField label="Desconto (R$)" min={0} value={edDesconto} onChange={setEdDesconto} />
-                <Field label="Forma de pagamento" value={edFormaPagamento} onChange={(e) => setEdFormaPagamento(e.target.value)} />
+                <NumberField label="Desconto (R$)" min={0} max={VALOR_MAXIMO_REAIS} value={edDesconto} onChange={setEdDesconto} />
+                <Field label="Forma de pagamento" value={edFormaPagamento} onChange={(e) => setEdFormaPagamento(e.target.value)} maxLength={100} />
               </div>
               <div className="grid sm:grid-cols-2 gap-6 mb-8">
-                <Field label="Prazo de execução" value={edPrazoExecucao} onChange={(e) => setEdPrazoExecucao(e.target.value)} />
-                <Field label="Garantia do serviço" value={edGarantiaServico} onChange={(e) => setEdGarantiaServico(e.target.value)} />
+                <Field label="Prazo de execução" value={edPrazoExecucao} onChange={(e) => setEdPrazoExecucao(e.target.value)} maxLength={60} />
+                <Field label="Garantia do serviço" value={edGarantiaServico} onChange={(e) => setEdGarantiaServico(e.target.value)} maxLength={60} />
               </div>
 
               {resultadoEdicao && (
@@ -457,12 +459,9 @@ export function BuscarOrcamento({ onVoltar: _onVoltarInicio }: { onVoltar: () =>
 
               <div className="mt-6 pt-6 border-t border-line">
                 {!confirmandoExclusao ? (
-                  <button
-                    onClick={() => setConfirmandoExclusao(true)}
-                    className="text-sm text-graphite hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                  >
+                  <Button variant="danger-ghost" onClick={() => setConfirmandoExclusao(true)}>
                     Excluir este orçamento
-                  </button>
+                  </Button>
                 ) : (
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3 border border-red-300 dark:border-red-900 px-4 py-3">
                     <span className="text-sm text-red-700 dark:text-red-300">
