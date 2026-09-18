@@ -267,6 +267,69 @@ export function ToggleField({ label, checked, onChange }: ToggleFieldProps) {
   )
 }
 
+interface PasswordFieldProps {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  hint?: string
+  placeholder?: string
+  autoComplete?: string
+}
+
+/**
+ * Campo de senha com botão de "olho" pra mostrar/ocultar o que foi
+ * digitado — útil em telas de login/cadastro/redefinição, onde não dá
+ * pra conferir erro de digitação de outro jeito.
+ */
+export function PasswordField({ label, value, onChange, hint, placeholder, autoComplete }: PasswordFieldProps) {
+  const [visivel, setVisivel] = useState(false)
+
+  return (
+    <label className="block">
+      <span className="block text-[11px] tracking-wide text-graphite mb-1.5">{label}</span>
+      <div className="relative">
+        <input
+          type={visivel ? 'text' : 'password'}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          className="w-full border-0 border-b border-line bg-transparent py-2 pr-9 text-sm text-ink placeholder:text-graphite/40 focus:outline-none focus:border-brass transition-colors"
+        />
+        <button
+          type="button"
+          onClick={() => setVisivel((v) => !v)}
+          aria-label={visivel ? 'Ocultar senha' : 'Mostrar senha'}
+          className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-graphite hover:text-ink transition-colors"
+        >
+          {visivel ? <IconeOlhoFechado /> : <IconeOlho />}
+        </button>
+      </div>
+      {hint && <span className="block text-[11px] text-graphite/70 mt-1">{hint}</span>}
+    </label>
+  )
+}
+
+function IconeOlho() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+
+function IconeOlhoFechado() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+      <path d="M6.61 6.61C3.35 8.55 2 11.5 2 11.5s3.5 7 10 7a9.34 9.34 0 0 0 4.24-.99" />
+      <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+      <path d="M2 2l20 20" />
+    </svg>
+  )
+}
+
 export function IconeChevron({ className = '' }: { className?: string }) {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>

@@ -4,14 +4,28 @@ import { NovoOrcamento } from './screens/NovoOrcamento'
 import { BuscarOrcamento } from './screens/BuscarOrcamento'
 import { Clientes } from './screens/Clientes'
 import { Configuracoes } from './screens/Configuracoes'
+import { Auth } from './screens/Auth'
 import { Sidebar, type Tela } from './components/Sidebar'
 import { useDarkMode } from './hooks/useDarkMode'
+import { useAuth } from './hooks/useAuth'
+import { redefinirSenha } from './lib/auth'
 import logoIcon from './assets/logo-icon.png'
 
 function App() {
   const [tela, setTela] = useState<Tela>('home')
   const [menuAberto, setMenuAberto] = useState(false)
   const { escuro, alternar } = useDarkMode()
+  const { usuario, entrar, cadastrarConta, sair } = useAuth()
+
+  // Sem login, só a tela de entrar/cadastrar/redefinir senha é acessível.
+  if (!usuario) {
+    return <Auth onEntrar={entrar} onCadastrar={cadastrarConta} onRedefinirSenha={redefinirSenha} />
+  }
+
+  function sairEVoltarHome() {
+    sair()
+    setTela('home')
+  }
 
   return (
     <div className="flex min-h-screen bg-paper text-ink">
@@ -22,6 +36,8 @@ function App() {
         onAlternarTema={alternar}
         aberta={menuAberto}
         onFechar={() => setMenuAberto(false)}
+        nomeUsuario={usuario.nome}
+        onSair={sairEVoltarHome}
       />
 
       <div className="flex-1 min-w-0 flex flex-col">
@@ -49,10 +65,12 @@ function App() {
               onConfig={() => setTela('config')}
             />
           )}
-          {tela === 'novo' && <NovoOrcamento onVoltar={() => setTela('home')} />}
+          {tela === 'novo' && (
+            <NovoOrcamento onVoltar={() => setTela('home')} nomeResponsavel={usuario.nome} />
+          )}
           {tela === 'buscar' && <BuscarOrcamento onVoltar={() => setTela('home')} />}
           {tela === 'clientes' && <Clientes onVoltar={() => setTela('home')} />}
-          {tela === 'config' && <Configuracoes onVoltar={() => setTela('home')} />}
+          {tela === 'config' && <Configuracoes onVoltar={() => setTela('home')} usuarioLogado={usuario} />}
         </div>
       </div>
     </div>

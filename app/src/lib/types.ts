@@ -1,3 +1,22 @@
+/**
+ * Usuário com acesso ao app (login/senha). `senha_hash` só é usado
+ * internamente pelas funções de autenticação (lib/auth.ts) — o resto do
+ * app trabalha só com `UsuarioSessao` (sem o hash).
+ */
+export interface Usuario {
+  id: string
+  nome: string
+  usuario: string
+  senha_hash: string
+  created_at?: string
+}
+
+export interface UsuarioSessao {
+  id: string
+  nome: string
+  usuario: string
+}
+
 export type TipoOrcamento = 'Elétrica' | 'Mecânica' | 'Outros'
 
 export type StatusOrcamento = 'pendente' | 'aprovado' | 'recusado' | 'concluido'

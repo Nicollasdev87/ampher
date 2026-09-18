@@ -59,7 +59,14 @@ function novoItemVazio(dificuldadePadraoId: string | null, secao: string | null 
   }
 }
 
-export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
+export function NovoOrcamento({
+  onVoltar,
+  nomeResponsavel,
+}: {
+  onVoltar: () => void
+  /** Nome de quem está logado — preenchido automaticamente, sem campo no formulário. */
+  nomeResponsavel: string
+}) {
   const [passo, setPasso] = useState<Passo>(1)
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
@@ -71,7 +78,6 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
   const [clientes, setClientes] = useState<Cliente[]>([])
 
   // Dados do orçamento
-  const [responsavel, setResponsavel] = useState('')
   const [modoCliente, setModoCliente] = useState<ModoCliente>('perguntar')
   const [buscaCliente, setBuscaCliente] = useState('')
   const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null)
@@ -352,7 +358,7 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
     )
   }
 
-  const podeAvancarPasso1 = responsavel.trim() && clienteValidoPasso1 && tipo
+  const podeAvancarPasso1 = clienteValidoPasso1 && tipo
   const podeAvancarPasso2 = itens.length > 0 && itens.every((i) => i.descricao.trim() && i.quantidade > 0)
 
   async function finalizar() {
@@ -376,7 +382,7 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
       const numero = await proximoNumeroOrcamento()
       const orcamento: Orcamento = {
         numero,
-        responsavel,
+        responsavel: nomeResponsavel,
         cliente_id: clienteId,
         cliente_nome: clienteNomeEfetivo,
         cliente_contato: clienteContatoEfetivo,
@@ -442,14 +448,6 @@ export function NovoOrcamento({ onVoltar }: { onVoltar: () => void }) {
               <h2 className="font-display font-semibold text-3xl mb-8">Sobre esse orçamento</h2>
 
               <div className="space-y-6">
-                <Field
-                  label="Seu nome (quem está criando este orçamento)"
-                  value={responsavel}
-                  onChange={(e) => setResponsavel(e.target.value)}
-                  placeholder="Ex: Nicollas V."
-                  maxLength={TEXTO_MAXIMO_PADRAO}
-                />
-
                 <div>
                   <span className="block text-[11px] tracking-wide text-graphite mb-3">Cliente</span>
 

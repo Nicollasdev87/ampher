@@ -1,5 +1,33 @@
 import { supabase } from './supabase'
-import type { Cliente, Config, Dificuldade, Orcamento, OrcamentoCompleto, ItemOrcamento, ItemCatalogo } from './types'
+import type { Cliente, Config, Dificuldade, Orcamento, OrcamentoCompleto, ItemOrcamento, ItemCatalogo, Usuario } from './types'
+
+// ---------- Usuários (login) ----------
+
+/** Busca um usuário pelo login, ignorando maiúsculas/minúsculas. `null` se não existir. */
+export async function buscarUsuarioPorLogin(usuario: string): Promise<Usuario | null> {
+  const { data, error } = await supabase
+    .from('usuarios')
+    .select('*')
+    .ilike('usuario', usuario.trim())
+    .maybeSingle()
+  if (error) throw error
+  return (data as Usuario) ?? null
+}
+
+export async function criarUsuario(dados: { nome: string; usuario: string; senha_hash: string }): Promise<Usuario> {
+  const { data, error } = await supabase
+    .from('usuarios')
+    .insert({ nome: dados.nome.trim(), usuario: dados.usuario.trim(), senha_hash: dados.senha_hash })
+    .select()
+    .single()
+  if (error) throw error
+  return data as Usuario
+}
+
+export async function atualizarSenhaUsuario(id: string, senha_hash: string): Promise<void> {
+  const { error } = await supabase.from('usuarios').update({ senha_hash }).eq('id', id)
+  if (error) throw error
+}
 
 // ---------- Config ----------
 

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '../components/Button'
-import { IconeChevron, MoneyField, NumberField, SelectField } from '../components/Field'
+import { IconeChevron, MoneyField, NumberField, PasswordField, SelectField } from '../components/Field'
 import { Modal } from '../components/Modal'
 import { PageHeader } from '../components/PageHeader'
 import { TEXTO_MAXIMO_PADRAO, VALOR_MAXIMO_REAIS } from '../lib/formatacao'
 import { formatarMoeda } from '../lib/calculo'
-import type { Config, Dificuldade, ItemCatalogo, TipoOrcamento } from '../lib/types'
+import { trocarSenha } from '../lib/auth'
+import { regrasSenha } from '../lib/senha'
+import type { Config, Dificuldade, ItemCatalogo, TipoOrcamento, UsuarioSessao } from '../lib/types'
 import {
   atualizarConfig,
   atualizarDificuldade,
@@ -21,7 +23,13 @@ import {
 
 const TIPOS: TipoOrcamento[] = ['Elétrica', 'Mecânica', 'Outros']
 
-export function Configuracoes({ onVoltar }: { onVoltar: () => void }) {
+export function Configuracoes({
+  onVoltar,
+  usuarioLogado,
+}: {
+  onVoltar: () => void
+  usuarioLogado: UsuarioSessao
+}) {
   const [config, setConfig] = useState<Config | null>(null)
   const [dificuldades, setDificuldades] = useState<Dificuldade[]>([])
   const [itensCatalogo, setItensCatalogo] = useState<ItemCatalogo[]>([])
@@ -32,6 +40,37 @@ export function Configuracoes({ onVoltar }: { onVoltar: () => void }) {
   const [mensagem, setMensagem] = useState<string | null>(null)
   const [mostrarModalValores, setMostrarModalValores] = useState(false)
   const [mostrarFormNovoNivel, setMostrarFormNovoNivel] = useState(false)
+
+  // ---- Minha conta (trocar senha) ----
+  const [mostrarModalConta, setMostrarModalConta] = useState(false)
+  const [senhaAtual, setSenhaAtual] = useState('')
+  const [novaSenhaConta, setNovaSenhaConta] = useState('')
+  const [confirmarNovaSenhaConta, setConfirmarNovaSenhaConta] = useState('')
+  const [erroSenhaConta, setErroSenhaConta] = useState<string | null>(null)
+  const [mensagemSenhaConta, setMensagemSenhaConta] = useState<string | null>(null)
+  const [salvandoSenhaConta, setSalvandoSenhaConta] = useState(false)
+
+  async function salvarNovaSenha() {
+    setErroSenhaConta(null)
+    setMensagemSenhaConta(null)
+    setSalvandoSenhaConta(true)
+    try {
+      await trocarSenha({
+        usuario: usuarioLogado.usuario,
+        senhaAtual,
+        novaSenha: novaSenhaConta,
+        confirmarNovaSenha: confirmarNovaSenhaConta,
+      })
+      setSenhaAtual('')
+      setNovaSenhaConta('')
+      setConfirmarNovaSenhaConta('')
+      setMensagemSenhaConta('Senha atualizada com sucesso.')
+    } catch (e) {
+      setErroSenhaConta(e instanceof Error ? e.message : 'Não foi possível trocar a senha.')
+    } finally {
+      setSalvandoSenhaConta(false)
+    }
+  }
 
   // ---- Novo item de catálogo ----
   const [novoItemNome, setNovoItemNome] = useState('')
@@ -186,6 +225,94 @@ export function Configuracoes({ onVoltar }: { onVoltar: () => void }) {
 
       <main className="flex-1 px-5 sm:px-10 pb-16">
         <div className="max-w-2xl mx-auto">
+          {!mostrarModalConta ? (
+            <button
+              onClick={() => setMostrarModalConta(true)}
+              className="w-full flex items-center justify-between gap-4 border border-line p-4 mb-4 text-left hover:border-brass transition-colors"
+            >
+              <span className="min-w-0">
+                <span className="block font-display font-semibold text-lg text-ink">Minha conta</span>
+                <span className="block text-xs text-graphite mt-0.5">
+                  Logado como {usuarioLogado.nome} ({usuarioLogado.usuario}) — trocar senha
+                </span>
+              </span>
+              <IconeChevron className="-rotate-90 text-graphite shrink-0" />
+            </button>
+          ) : (
+            <Modal
+              title="Minha conta"
+              onClose={() => {
+                setMostrarModalConta(false)
+                setErroSenhaConta(null)
+                setMensagemSenhaConta(null)
+              }}
+            >
+              <p className="text-sm text-graphite mb-6">
+                Logado como <span className="text-ink font-medium">{usuarioLogado.nome}</span> (usuário{' '}
+                <span className="text-ink font-medium">{usuarioLogado.usuario}</span>)
+              </p>
+
+              <p className="text-[11px] tracking-wide text-graphite mb-4">TROCAR SENHA</p>
+
+              {erroSenhaConta && (
+                <div className="mb-4 border border-red-200 bg-red-50 dark:bg-red-950/40 dark:border-red-900 text-red-700 dark:text-red-300 text-sm px-4 py-3">
+                  {erroSenhaConta}
+                </div>
+              )}
+
+              <form
+                className="space-y-5"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  salvarNovaSenha()
+                }}
+              >
+                <PasswordField
+                  label="Senha atual"
+                  value={senhaAtual}
+                  onChange={setSenhaAtual}
+                  autoComplete="current-password"
+                />
+                <div>
+                  <PasswordField
+                    label="Nova senha"
+                    value={novaSenhaConta}
+                    onChange={setNovaSenhaConta}
+                    autoComplete="new-password"
+                  />
+                  {novaSenhaConta && (
+                    <ul className="mt-1.5 space-y-0.5">
+                      {regrasSenha(novaSenhaConta).map((r) => (
+                        <li
+                          key={r.label}
+                          className={`text-[11px] flex items-center gap-1.5 ${
+                            r.ok ? 'text-green-600 dark:text-green-400' : 'text-graphite/70'
+                          }`}
+                        >
+                          <span>{r.ok ? '✓' : '·'}</span>
+                          {r.label}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <PasswordField
+                  label="Confirmar nova senha"
+                  value={confirmarNovaSenhaConta}
+                  onChange={setConfirmarNovaSenhaConta}
+                  autoComplete="new-password"
+                />
+
+                <div className="flex items-center gap-4">
+                  <Button type="submit" disabled={salvandoSenhaConta}>
+                    {salvandoSenhaConta ? 'Salvando…' : 'Salvar nova senha'}
+                  </Button>
+                  {mensagemSenhaConta && <span className="text-sm text-brass">{mensagemSenhaConta}</span>}
+                </div>
+              </form>
+            </Modal>
+          )}
+
           {!mostrarModalValores ? (
             <button
               onClick={() => setMostrarModalValores(true)}

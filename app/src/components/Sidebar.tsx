@@ -17,6 +17,8 @@ export function Sidebar({
   onAlternarTema,
   aberta = true,
   onFechar,
+  nomeUsuario,
+  onSair,
 }: {
   telaAtual: Tela
   onNavegar: (tela: Tela) => void
@@ -25,6 +27,8 @@ export function Sidebar({
   /** No mobile a sidebar é um drawer que abre/fecha; no desktop fica sempre visível. */
   aberta?: boolean
   onFechar?: () => void
+  nomeUsuario: string
+  onSair: () => void
 }) {
   function navegarEFechar(tela: Tela) {
     onNavegar(tela)
@@ -89,6 +93,10 @@ export function Sidebar({
         </nav>
 
         <div className="space-y-1 pt-4 border-t border-line">
+          <div className="px-3 py-1.5 text-[11px] text-graphite truncate" title={nomeUsuario}>
+            Logado como <span className="text-ink font-medium">{nomeUsuario}</span>
+          </div>
+
           <button
             onClick={() => navegarEFechar('config')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors ${
@@ -120,6 +128,14 @@ export function Sidebar({
                 }`}
               />
             </span>
+          </button>
+
+          <button
+            onClick={onSair}
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-graphite hover:text-red-600 dark:hover:text-red-400 transition-colors"
+          >
+            <IconeSair />
+            Sair
           </button>
         </div>
       </aside>
@@ -186,6 +202,16 @@ function IconeSol() {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="12" r="4" />
       <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </svg>
+  )
+}
+
+function IconeSair() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="M16 17l5-5-5-5" />
+      <path d="M21 12H9" />
     </svg>
   )
 }
