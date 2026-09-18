@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '../components/Button'
-import { MoneyField, NumberField } from '../components/Field'
+import { IconeChevron, MoneyField, NumberField, SelectField } from '../components/Field'
+import { Modal } from '../components/Modal'
 import { PageHeader } from '../components/PageHeader'
 import { TEXTO_MAXIMO_PADRAO, VALOR_MAXIMO_REAIS } from '../lib/formatacao'
-import type { Config, Dificuldade, ItemCatalogo } from '../lib/types'
+import { formatarMoeda } from '../lib/calculo'
+import type { Config, Dificuldade, ItemCatalogo, TipoOrcamento } from '../lib/types'
 import {
   atualizarConfig,
   atualizarDificuldade,
@@ -17,6 +19,8 @@ import {
   removerItemCatalogo,
 } from '../lib/api'
 
+const TIPOS: TipoOrcamento[] = ['Elétrica', 'Mecânica', 'Outros']
+
 export function Configuracoes({ onVoltar }: { onVoltar: () => void }) {
   const [config, setConfig] = useState<Config | null>(null)
   const [dificuldades, setDificuldades] = useState<Dificuldade[]>([])
@@ -26,11 +30,41 @@ export function Configuracoes({ onVoltar }: { onVoltar: () => void }) {
   const [novoNome, setNovoNome] = useState('')
   const [novoMultiplicador, setNovoMultiplicador] = useState(1)
   const [mensagem, setMensagem] = useState<string | null>(null)
+  const [mostrarModalValores, setMostrarModalValores] = useState(false)
+  const [mostrarFormNovoNivel, setMostrarFormNovoNivel] = useState(false)
 
   // ---- Novo item de catálogo ----
   const [novoItemNome, setNovoItemNome] = useState('')
-  const [novoItemCategoria, setNovoItemCategoria] = useState('')
+  const [novoItemCategoria, setNovoItemCategoria] = useState<TipoOrcamento>('Elétrica')
+  const [novoItemSubcategoria, setNovoItemSubcategoria] = useState('')
   const [novoItemValor, setNovoItemValor] = useState(0)
+  const [mostrarFormNovoItem, setMostrarFormNovoItem] = useState(false)
+
+  // Busca livre por nome/subcategoria — com listas grandes (ex: 100 itens)
+  // é bem mais rápido achar o item digitando do que abrindo grupo por grupo.
+  const [buscaCatalogo, setBuscaCatalogo] = useState('')
+  // Categorias/subcategorias abertas (accordion). Ficam todas fechadas por
+  // padrão pra não jogar a tela cheia de informação de uma vez.
+  const [categoriasAbertas, setCategoriasAbertas] = useState<Set<TipoOrcamento>>(new Set())
+  const [subcategoriasAbertas, setSubcategoriasAbertas] = useState<Set<string>>(new Set())
+
+  function alternarCategoria(cat: TipoOrcamento) {
+    setCategoriasAbertas((prev) => {
+      const next = new Set(prev)
+      if (next.has(cat)) next.delete(cat)
+      else next.add(cat)
+      return next
+    })
+  }
+
+  function alternarSubcategoria(chave: string) {
+    setSubcategoriasAbertas((prev) => {
+      const next = new Set(prev)
+      if (next.has(chave)) next.delete(chave)
+      else next.add(chave)
+      return next
+    })
+  }
 
   useEffect(() => {
     async function carregar() {
@@ -43,32 +77,62 @@ export function Configuracoes({ onVoltar }: { onVoltar: () => void }) {
     carregar()
   }, [])
 
-  const categoriasExistentes = useMemo(
-    () => Array.from(new Set(itensCatalogo.map((i) => i.categoria))),
+  const subcategoriasExistentes = useMemo(
+    () => Array.from(new Set(itensCatalogo.map((i) => i.subcategoria))),
     [itensCatalogo]
   )
 
+  // Enquanto a pessoa está buscando, filtra por nome/subcategoria e abre
+  // tudo automaticamente — sem busca, os grupos ficam fechados por padrão.
+  const termoBusca = buscaCatalogo.trim().toLowerCase()
+  const buscando = termoBusca.length > 0
+
+  const itensFiltrados = useMemo(() => {
+    if (!termoBusca) return itensCatalogo
+    return itensCatalogo.filter(
+      (i) => i.nome.toLowerCase().includes(termoBusca) || i.subcategoria.toLowerCase().includes(termoBusca)
+    )
+  }, [itensCatalogo, termoBusca])
+
   const catalogoPorCategoria = useMemo(() => {
-    const mapa = new Map<string, ItemCatalogo[]>()
-    for (const item of itensCatalogo) {
-      if (!mapa.has(item.categoria)) mapa.set(item.categoria, [])
-      mapa.get(item.categoria)!.push(item)
+    const mapa = new Map<TipoOrcamento, Map<string, ItemCatalogo[]>>()
+    for (const item of itensFiltrados) {
+      if (!mapa.has(item.categoria)) mapa.set(item.categoria, new Map())
+      const porSubcategoria = mapa.get(item.categoria)!
+      if (!porSubcategoria.has(item.subcategoria)) porSubcategoria.set(item.subcategoria, [])
+      porSubcategoria.get(item.subcategoria)!.push(item)
     }
     return mapa
-  }, [itensCatalogo])
+  }, [itensFiltrados])
 
   async function adicionarItemCatalogo() {
-    if (!novoItemNome.trim() || !novoItemCategoria.trim()) return
-    const criado = await criarItemCatalogo(novoItemCategoria.trim(), novoItemNome.trim(), novoItemValor)
+    if (!novoItemNome.trim() || !novoItemSubcategoria.trim()) return
+    const criado = await criarItemCatalogo(
+      novoItemCategoria,
+      novoItemSubcategoria.trim(),
+      novoItemNome.trim(),
+      novoItemValor
+    )
     setItensCatalogo((prev) =>
-      [...prev, criado].sort((a, b) => a.categoria.localeCompare(b.categoria) || a.nome.localeCompare(b.nome))
+      [...prev, criado].sort(
+        (a, b) =>
+          a.categoria.localeCompare(b.categoria) ||
+          a.subcategoria.localeCompare(b.subcategoria) ||
+          a.nome.localeCompare(b.nome)
+      )
     )
     setNovoItemNome('')
     setNovoItemValor(0)
   }
 
-  async function editarItemCatalogo(id: string, categoria: string, nome: string, valor_unitario: number) {
-    const atualizado = await atualizarItemCatalogo(id, { categoria, nome, valor_unitario })
+  async function editarItemCatalogo(
+    id: string,
+    categoria: TipoOrcamento,
+    subcategoria: string,
+    nome: string,
+    valor_unitario: number
+  ) {
+    const atualizado = await atualizarItemCatalogo(id, { categoria, subcategoria, nome, valor_unitario })
     setItensCatalogo((prev) => prev.map((i) => (i.id === id ? atualizado : i)))
   }
 
@@ -122,150 +186,304 @@ export function Configuracoes({ onVoltar }: { onVoltar: () => void }) {
 
       <main className="flex-1 px-5 sm:px-10 pb-16">
         <div className="max-w-2xl mx-auto">
-          <h2 className="font-display font-semibold text-2xl sm:text-3xl mb-10">
-            Valores e níveis de dificuldade
-          </h2>
-
-          <section className="mb-14">
-            <p className="text-[11px] tracking-wide text-graphite mb-4">
-              VALORES PADRÃO (usados em todo orçamento novo)
-            </p>
-            <div className="grid sm:grid-cols-2 gap-6 mb-6">
-              <MoneyField
-                label="Deslocamento por dia (R$)"
-                max={VALOR_MAXIMO_REAIS}
-                value={config.valor_deslocamento}
-                onChange={(v) => setConfig({ ...config, valor_deslocamento: v })}
-              />
-              <MoneyField
-                label="Refeição por técnico/dia (R$)"
-                max={VALOR_MAXIMO_REAIS}
-                value={config.valor_refeicao}
-                onChange={(v) => setConfig({ ...config, valor_refeicao: v })}
-              />
-              <MoneyField
-                label="Diária por técnico (R$)"
-                max={VALOR_MAXIMO_REAIS}
-                value={config.valor_diaria_tecnico}
-                onChange={(v) => setConfig({ ...config, valor_diaria_tecnico: v })}
-              />
-              <NumberField
-                label="NFe embutida (%)"
-                max={100}
-                value={config.percentual_nfe}
-                onChange={(v) => setConfig({ ...config, percentual_nfe: v })}
-              />
-            </div>
-            <div className="flex items-center gap-4">
-              <Button className="w-full sm:w-auto" onClick={salvarConfig} disabled={salvandoConfig}>
-                {salvandoConfig ? 'Salvando…' : 'Salvar valores'}
-              </Button>
-              {mensagem && <span className="text-sm text-brass">{mensagem}</span>}
-            </div>
-          </section>
-
-          <section>
-            <p className="text-[11px] tracking-wide text-graphite mb-4">
-              NÍVEIS DE DIFICULDADE (multiplicador aplicado ao valor unitário — não aparece no PDF)
-            </p>
-
-            <div className="divide-y divide-line border-t border-b border-line mb-6">
-              {dificuldades.map((d) => (
-                <LinhaDificuldade
-                  key={d.id}
-                  dificuldade={d}
-                  onSalvar={(nome, mult) => editarDificuldade(d.id, nome, mult)}
-                  onExcluir={() => excluirDificuldade(d.id)}
-                />
-              ))}
-            </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-              <div className="flex-1">
-                <span className="block text-[11px] tracking-wide text-graphite mb-1.5">
-                  Novo nível
+          {!mostrarModalValores ? (
+            <button
+              onClick={() => setMostrarModalValores(true)}
+              className="w-full flex items-center justify-between gap-4 border border-line p-4 mb-10 text-left hover:border-brass transition-colors"
+            >
+              <span className="min-w-0">
+                <span className="block font-display font-semibold text-lg text-ink">
+                  Valores e níveis de dificuldade
                 </span>
-                <input
-                  value={novoNome}
-                  onChange={(e) => setNovoNome(e.target.value)}
-                  placeholder="Ex: Alta complexidade"
-                  maxLength={TEXTO_MAXIMO_PADRAO}
-                  className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink placeholder:text-graphite/40 focus:outline-none focus:border-brass transition-colors"
-                />
-              </div>
-              <div className="sm:w-32">
-                <NumberField label="Multiplicador" min={1} value={novoMultiplicador} onChange={setNovoMultiplicador} />
-              </div>
-              <Button className="w-full sm:w-auto" variant="secondary" onClick={adicionarDificuldade}>
-                Adicionar
-              </Button>
-            </div>
-          </section>
+                <span className="block text-xs text-graphite mt-0.5">
+                  Deslocamento, refeição, diária técnica, NFe e multiplicadores de risco
+                </span>
+              </span>
+              <IconeChevron className="-rotate-90 text-graphite shrink-0" />
+            </button>
+          ) : (
+            <Modal title="Valores e níveis de dificuldade" onClose={() => setMostrarModalValores(false)}>
+              <section className="mb-10">
+                <p className="text-[11px] tracking-wide text-graphite mb-4">
+                  VALORES PADRÃO (usados em todo orçamento novo)
+                </p>
+                <div className="grid sm:grid-cols-2 gap-6 mb-6">
+                  <MoneyField
+                    label="Deslocamento por dia (R$)"
+                    max={VALOR_MAXIMO_REAIS}
+                    value={config.valor_deslocamento}
+                    onChange={(v) => setConfig({ ...config, valor_deslocamento: v })}
+                  />
+                  <MoneyField
+                    label="Refeição por técnico/dia (R$)"
+                    max={VALOR_MAXIMO_REAIS}
+                    value={config.valor_refeicao}
+                    onChange={(v) => setConfig({ ...config, valor_refeicao: v })}
+                  />
+                  <MoneyField
+                    label="Diária por técnico (R$)"
+                    max={VALOR_MAXIMO_REAIS}
+                    value={config.valor_diaria_tecnico}
+                    onChange={(v) => setConfig({ ...config, valor_diaria_tecnico: v })}
+                  />
+                  <NumberField
+                    label="NFe embutida (%)"
+                    max={100}
+                    value={config.percentual_nfe}
+                    onChange={(v) => setConfig({ ...config, percentual_nfe: v })}
+                  />
+                </div>
+                <div className="flex items-center gap-4">
+                  <Button className="w-full sm:w-auto" onClick={salvarConfig} disabled={salvandoConfig}>
+                    {salvandoConfig ? 'Salvando…' : 'Salvar valores'}
+                  </Button>
+                  {mensagem && <span className="text-sm text-brass">{mensagem}</span>}
+                </div>
+              </section>
+
+              <section>
+                <p className="text-[11px] tracking-wide text-graphite mb-4">
+                  NÍVEIS DE DIFICULDADE (multiplicador aplicado ao valor unitário — não aparece no PDF)
+                </p>
+
+                <div className="divide-y divide-line border-t border-b border-line mb-4">
+                  {dificuldades.map((d) => (
+                    <LinhaDificuldade
+                      key={d.id}
+                      dificuldade={d}
+                      onSalvar={(nome, mult) => editarDificuldade(d.id, nome, mult)}
+                      onExcluir={() => excluirDificuldade(d.id)}
+                    />
+                  ))}
+                </div>
+
+                {!mostrarFormNovoNivel ? (
+                  <button
+                    onClick={() => setMostrarFormNovoNivel(true)}
+                    className="text-sm text-brass hover:text-brass-dark font-medium"
+                  >
+                    + Adicionar nível
+                  </button>
+                ) : (
+                  <div className="border border-line p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+                      <div className="flex-1">
+                        <span className="block text-[11px] tracking-wide text-graphite mb-1.5">
+                          Novo nível
+                        </span>
+                        <input
+                          value={novoNome}
+                          onChange={(e) => setNovoNome(e.target.value)}
+                          placeholder="Ex: Alta complexidade"
+                          maxLength={TEXTO_MAXIMO_PADRAO}
+                          autoFocus
+                          className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink placeholder:text-graphite/40 focus:outline-none focus:border-brass transition-colors"
+                        />
+                      </div>
+                      <div className="sm:w-32">
+                        <NumberField
+                          label="Multiplicador"
+                          min={1}
+                          value={novoMultiplicador}
+                          onChange={setNovoMultiplicador}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 mt-4">
+                      <Button
+                        className="w-full sm:w-auto"
+                        variant="secondary"
+                        onClick={async () => {
+                          await adicionarDificuldade()
+                          setMostrarFormNovoNivel(false)
+                        }}
+                      >
+                        Adicionar
+                      </Button>
+                      <button
+                        onClick={() => setMostrarFormNovoNivel(false)}
+                        className="text-sm text-graphite hover:text-ink"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </section>
+            </Modal>
+          )}
 
           <section className="mt-14">
             <p className="text-[11px] tracking-wide text-graphite mb-2">
               ITENS PREDEFINIDOS (CATÁLOGO)
             </p>
             <p className="text-sm text-graphite mb-4">
-              Aparecem no select de "item predefinido" ao criar um orçamento, agrupados por
-              categoria. Escolher um deles já preenche a descrição e o valor unitário do item.
+              Aparecem no select de item ao criar um orçamento, já filtrados pelo tipo escolhido
+              no passo 1 (Elétrica / Mecânica / Outros) e agrupados por subcategoria (ex:
+              Residencial, Industrial, Comercial). Escolher um deles preenche a descrição e o
+              valor unitário do item.
             </p>
 
-            <datalist id="categorias-existentes">
-              {categoriasExistentes.map((c) => (
-                <option key={c} value={c} />
+            <datalist id="subcategorias-existentes">
+              {subcategoriasExistentes.map((s) => (
+                <option key={s} value={s} />
               ))}
             </datalist>
 
-            {Array.from(catalogoPorCategoria.entries()).map(([categoria, itensDaCategoria]) => (
-              <div key={categoria} className="mb-6">
-                <p className="text-[11px] tracking-wide text-brass mb-2 uppercase">{categoria}</p>
-                <div className="divide-y divide-line border-t border-b border-line">
-                  {itensDaCategoria.map((item) => (
-                    <LinhaItemCatalogo
-                      key={item.id}
-                      item={item}
-                      onSalvar={(categoria, nome, valor) => editarItemCatalogo(item.id, categoria, nome, valor)}
-                      onExcluir={() => excluirItemCatalogo(item.id)}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-
-            <div className="flex flex-col sm:flex-row sm:items-end gap-4 mt-2">
-              <div className="flex-1">
-                <span className="block text-[11px] tracking-wide text-graphite mb-1.5">
-                  Nome do item
-                </span>
-                <input
-                  value={novoItemNome}
-                  onChange={(e) => setNovoItemNome(e.target.value)}
-                  placeholder="Ex: Instalação de disjuntor monofásico"
-                  maxLength={TEXTO_MAXIMO_PADRAO}
-                  className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink placeholder:text-graphite/40 focus:outline-none focus:border-brass transition-colors"
-                />
-              </div>
-              <div className="sm:w-48">
-                <span className="block text-[11px] tracking-wide text-graphite mb-1.5">
-                  Categoria
-                </span>
-                <input
-                  list="categorias-existentes"
-                  value={novoItemCategoria}
-                  onChange={(e) => setNovoItemCategoria(e.target.value)}
-                  placeholder="Ex: Elétrica"
-                  maxLength={40}
-                  className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink placeholder:text-graphite/40 focus:outline-none focus:border-brass transition-colors"
-                />
-              </div>
-              <div className="sm:w-40">
-                <MoneyField label="Valor (R$)" max={VALOR_MAXIMO_REAIS} value={novoItemValor} onChange={setNovoItemValor} />
-              </div>
-              <Button className="w-full sm:w-auto" variant="secondary" onClick={adicionarItemCatalogo}>
-                Adicionar
-              </Button>
+            <div className="mb-6">
+              <input
+                value={buscaCatalogo}
+                onChange={(e) => setBuscaCatalogo(e.target.value)}
+                placeholder="Buscar item por nome ou subcategoria…"
+                className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink placeholder:text-graphite/40 focus:outline-none focus:border-brass transition-colors"
+              />
             </div>
+
+            {itensCatalogo.length === 0 && (
+              <p className="text-sm text-graphite/70 mb-6">Nenhum item cadastrado ainda.</p>
+            )}
+            {itensCatalogo.length > 0 && catalogoPorCategoria.size === 0 && (
+              <p className="text-sm text-graphite/70 mb-6">Nenhum item encontrado para "{buscaCatalogo}".</p>
+            )}
+
+            <div className="border-t border-line mb-6">
+              {TIPOS.filter((tipo) => catalogoPorCategoria.has(tipo)).map((tipo) => {
+                const subcategorias = catalogoPorCategoria.get(tipo)!
+                const totalCategoria = Array.from(subcategorias.values()).reduce((n, l) => n + l.length, 0)
+                const aberta = buscando || categoriasAbertas.has(tipo)
+                return (
+                  <div key={tipo} className="border-b border-line">
+                    <button
+                      onClick={() => alternarCategoria(tipo)}
+                      className="w-full flex items-center justify-between py-3 text-left"
+                    >
+                      <span className="text-[11px] tracking-wide text-brass uppercase font-semibold">
+                        {tipo}{' '}
+                        <span className="text-graphite normal-case font-normal">
+                          ({totalCategoria} {totalCategoria === 1 ? 'item' : 'itens'})
+                        </span>
+                      </span>
+                      <IconeChevron
+                        className={`text-graphite transition-transform ${aberta ? 'rotate-180' : ''}`}
+                      />
+                    </button>
+
+                    {aberta && (
+                      <div className="pb-4">
+                        {Array.from(subcategorias.entries()).map(([subcategoria, itensDoGrupo]) => {
+                          const chave = `${tipo}::${subcategoria}`
+                          const subAberta = buscando || subcategoriasAbertas.has(chave)
+                          return (
+                            <div key={subcategoria} className="mb-2 pl-1">
+                              <button
+                                onClick={() => alternarSubcategoria(chave)}
+                                className="w-full flex items-center justify-between py-2 text-left"
+                              >
+                                <span className="text-[11px] text-graphite">
+                                  {subcategoria}{' '}
+                                  <span className="text-graphite/60">
+                                    ({itensDoGrupo.length})
+                                  </span>
+                                </span>
+                                <IconeChevron
+                                  className={`text-graphite/70 transition-transform ${subAberta ? 'rotate-180' : ''}`}
+                                />
+                              </button>
+                              {subAberta && (
+                                <div className="divide-y divide-line border-t border-b border-line">
+                                  {itensDoGrupo.map((item) => (
+                                    <LinhaItemCatalogo
+                                      key={item.id}
+                                      item={item}
+                                      onSalvar={(categoria, subcategoria, nome, valor) =>
+                                        editarItemCatalogo(item.id, categoria, subcategoria, nome, valor)
+                                      }
+                                      onExcluir={() => excluirItemCatalogo(item.id)}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {!mostrarFormNovoItem ? (
+              <Button variant="secondary" onClick={() => setMostrarFormNovoItem(true)}>
+                + Adicionar item ao catálogo
+              </Button>
+            ) : (
+              <Modal title="Adicionar item ao catálogo" onClose={() => setMostrarFormNovoItem(false)}>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <span className="block text-[11px] tracking-wide text-graphite mb-1.5">
+                      Nome do item
+                    </span>
+                    <input
+                      value={novoItemNome}
+                      onChange={(e) => setNovoItemNome(e.target.value)}
+                      placeholder="Ex: Instalação de disjuntor monofásico"
+                      maxLength={TEXTO_MAXIMO_PADRAO}
+                      autoFocus
+                      className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink placeholder:text-graphite/40 focus:outline-none focus:border-brass transition-colors"
+                    />
+                  </div>
+                  <SelectField
+                    label="Categoria"
+                    value={novoItemCategoria}
+                    onChange={(v) => setNovoItemCategoria(v as TipoOrcamento)}
+                  >
+                    {TIPOS.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </SelectField>
+                  <div>
+                    <span className="block text-[11px] tracking-wide text-graphite mb-1.5">
+                      Subcategoria
+                    </span>
+                    <input
+                      list="subcategorias-existentes"
+                      value={novoItemSubcategoria}
+                      onChange={(e) => setNovoItemSubcategoria(e.target.value)}
+                      placeholder="Ex: Residencial, Industrial, Comercial…"
+                      maxLength={40}
+                      className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink placeholder:text-graphite/40 focus:outline-none focus:border-brass transition-colors"
+                    />
+                  </div>
+                  <MoneyField
+                    label="Valor (R$)"
+                    max={VALOR_MAXIMO_REAIS}
+                    value={novoItemValor}
+                    onChange={setNovoItemValor}
+                  />
+                </div>
+                <div className="flex items-center gap-4 mt-6">
+                  <Button
+                    className="w-full sm:w-auto"
+                    variant="secondary"
+                    onClick={async () => {
+                      await adicionarItemCatalogo()
+                      setMostrarFormNovoItem(false)
+                    }}
+                  >
+                    Adicionar item
+                  </Button>
+                  <button
+                    onClick={() => setMostrarFormNovoItem(false)}
+                    className="text-sm text-graphite hover:text-ink"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </Modal>
+            )}
           </section>
         </div>
       </main>
@@ -321,48 +539,126 @@ function LinhaDificuldade({
   )
 }
 
+/**
+ * Linha do item do catálogo: por padrão mostra só um resumo (nome + valor)
+ * pra não poluir a tela quando há muitos itens — os campos de edição só
+ * aparecem quando a pessoa clica em "Editar".
+ */
 function LinhaItemCatalogo({
   item,
   onSalvar,
   onExcluir,
 }: {
   item: ItemCatalogo
-  onSalvar: (categoria: string, nome: string, valor: number) => void
+  onSalvar: (categoria: TipoOrcamento, subcategoria: string, nome: string, valor: number) => void
   onExcluir: () => void
 }) {
-  const [categoria, setCategoria] = useState(item.categoria)
+  const [editando, setEditando] = useState(false)
+  const [categoria, setCategoria] = useState<TipoOrcamento>(item.categoria)
+  const [subcategoria, setSubcategoria] = useState(item.subcategoria)
   const [nome, setNome] = useState(item.nome)
   const [valor, setValor] = useState(item.valor_unitario)
-  const alterado = categoria !== item.categoria || nome !== item.nome || valor !== item.valor_unitario
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false)
+
+  function abrirEdicao() {
+    setCategoria(item.categoria)
+    setSubcategoria(item.subcategoria)
+    setNome(item.nome)
+    setValor(item.valor_unitario)
+    setEditando(true)
+  }
+
+  function salvar() {
+    onSalvar(categoria, subcategoria, nome, valor)
+    setEditando(false)
+  }
+
+  if (!editando) {
+    return (
+      <div className="flex items-center justify-between gap-3 py-2.5">
+        <div className="min-w-0">
+          <p className="text-sm text-ink truncate">{item.nome}</p>
+          <p className="text-xs text-graphite tabular">{formatarMoeda(item.valor_unitario)}</p>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          {!confirmandoExclusao ? (
+            <>
+              <button onClick={abrirEdicao} className="text-xs text-brass font-medium hover:text-brass-dark">
+                Editar
+              </button>
+              <button
+                onClick={() => setConfirmandoExclusao(true)}
+                className="text-xs text-graphite hover:text-red-500"
+              >
+                Remover
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="text-xs text-graphite">Remover?</span>
+              <button onClick={onExcluir} className="text-xs text-red-600 dark:text-red-400 font-medium">
+                Sim
+              </button>
+              <button
+                onClick={() => setConfirmandoExclusao(false)}
+                className="text-xs text-graphite hover:text-ink"
+              >
+                Não
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 py-3">
-      <input
-        value={nome}
-        onChange={(e) => setNome(e.target.value)}
-        maxLength={TEXTO_MAXIMO_PADRAO}
-        className="flex-1 border-0 bg-transparent text-sm focus:outline-none"
-      />
-      <input
-        value={categoria}
-        onChange={(e) => setCategoria(e.target.value)}
-        maxLength={40}
-        className="sm:w-36 border-0 bg-transparent text-xs text-graphite focus:outline-none"
-      />
-      <div className="sm:w-32">
-        <MoneyField label="" value={valor} onChange={setValor} max={VALOR_MAXIMO_REAIS} />
+    <div className="flex items-center justify-between gap-3 py-2.5">
+      <div className="min-w-0">
+        <p className="text-sm text-ink truncate">{item.nome}</p>
+        <p className="text-xs text-graphite tabular">{formatarMoeda(item.valor_unitario)}</p>
       </div>
-      {alterado && (
-        <button
-          onClick={() => onSalvar(categoria, nome, valor)}
-          className="text-xs text-brass font-medium hover:text-brass-dark shrink-0"
-        >
-          Salvar
-        </button>
-      )}
-      <button onClick={onExcluir} className="text-xs text-graphite hover:text-red-500 shrink-0">
-        Remover
-      </button>
+
+      <Modal title="Editar item" onClose={() => setEditando(false)}>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="sm:col-span-2">
+            <span className="block text-[11px] tracking-wide text-graphite mb-1.5">Nome do item</span>
+            <input
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              maxLength={TEXTO_MAXIMO_PADRAO}
+              autoFocus
+              className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink focus:outline-none focus:border-brass transition-colors"
+            />
+          </div>
+          <SelectField label="Categoria" value={categoria} onChange={(v) => setCategoria(v as TipoOrcamento)}>
+            {TIPOS.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </SelectField>
+          <div>
+            <span className="block text-[11px] tracking-wide text-graphite mb-1.5">Subcategoria</span>
+            <input
+              list="subcategorias-existentes"
+              value={subcategoria}
+              onChange={(e) => setSubcategoria(e.target.value)}
+              maxLength={40}
+              className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink focus:outline-none focus:border-brass transition-colors"
+            />
+          </div>
+          <MoneyField label="Valor (R$)" max={VALOR_MAXIMO_REAIS} value={valor} onChange={setValor} />
+        </div>
+        <div className="flex items-center gap-4 mt-6">
+          <Button className="w-full sm:w-auto" variant="secondary" onClick={salvar}>
+            Salvar
+          </Button>
+          <button onClick={() => setEditando(false)} className="text-sm text-graphite hover:text-ink">
+            Cancelar
+          </button>
+        </div>
+      </Modal>
     </div>
   )
 }

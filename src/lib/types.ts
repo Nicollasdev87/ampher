@@ -43,14 +43,35 @@ export interface ItemOrcamento {
  * Item predefinido do catálogo (Configurações → Itens predefinidos).
  * Serve pra padronizar descrição + valor unitário na hora de montar um
  * orçamento — a pessoa escolhe no select e os campos já vêm preenchidos.
- * `categoria` é texto livre (ex: "Elétrica", "Mecânica") pra permitir
- * criar novas categorias sem precisar mexer em código.
+ *
+ * `categoria` é vinculada ao mesmo tipo do orçamento (Elétrica / Mecânica
+ * / Outros), pra que o select de itens já venha filtrado pelo tipo
+ * escolhido no passo 1. `subcategoria` é texto livre (ex: "Residencial",
+ * "Industrial", "Comercial") usado só pra agrupar visualmente os itens
+ * dentro de cada categoria.
  */
 export interface ItemCatalogo {
   id: string
-  categoria: string
+  categoria: TipoOrcamento
+  subcategoria: string
   nome: string
   valor_unitario: number
+  created_at?: string
+}
+
+/**
+ * Cliente cadastrado (Clientes / seleção ao criar orçamento). Guarda
+ * vários telefones (por isso o array) e, opcionalmente, uma localização
+ * marcada no mapa (latitude/longitude) além do endereço em texto.
+ */
+export interface Cliente {
+  id: string
+  nome: string
+  telefones: string[]
+  endereco: string | null
+  latitude: number | null
+  longitude: number | null
+  observacao?: string | null
   created_at?: string
 }
 
@@ -58,6 +79,7 @@ export interface Orcamento {
   id?: string
   numero: number
   responsavel: string
+  cliente_id?: string | null
   cliente_nome: string
   cliente_contato: string
   local_servico: string

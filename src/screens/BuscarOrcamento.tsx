@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '../components/Button'
-import { Field, MoneyField, NumberField, PhoneField, SelectField } from '../components/Field'
+import { Field, MoneyField, NumberField, PhoneField, SelectField, ToggleField } from '../components/Field'
 import { PageHeader } from '../components/PageHeader'
 import type {
   Config,
@@ -29,11 +29,11 @@ import { baixarPdfOrcamento } from '../lib/pdf'
 
 const TIPOS: TipoOrcamento[] = ['Elétrica', 'Mecânica', 'Outros']
 
-function agruparPorCategoria(itens: ItemCatalogo[]): Map<string, ItemCatalogo[]> {
+function agruparPorSubcategoria(itens: ItemCatalogo[]): Map<string, ItemCatalogo[]> {
   const mapa = new Map<string, ItemCatalogo[]>()
   for (const item of itens) {
-    if (!mapa.has(item.categoria)) mapa.set(item.categoria, [])
-    mapa.get(item.categoria)!.push(item)
+    if (!mapa.has(item.subcategoria)) mapa.set(item.subcategoria, [])
+    mapa.get(item.subcategoria)!.push(item)
   }
   return mapa
 }
@@ -78,6 +78,8 @@ export function BuscarOrcamento({ onVoltar: _onVoltarInicio }: { onVoltar: () =>
   const [edNomeProjeto, setEdNomeProjeto] = useState('')
   const [edTipo, setEdTipo] = useState<TipoOrcamento>('Elétrica')
   const [edItens, setEdItens] = useState<ItemOrcamento[]>([])
+  const [edCatalogoSelecionado, setEdCatalogoSelecionado] = useState<(string | null)[]>([])
+  const [edMostrarObs, setEdMostrarObs] = useState<boolean[]>([])
   const [edDias, setEdDias] = useState(1)
   const [edNumTecnicos, setEdNumTecnicos] = useState(1)
   const [edDesconto, setEdDesconto] = useState(0)
@@ -96,7 +98,14 @@ export function BuscarOrcamento({ onVoltar: _onVoltarInicio }: { onVoltar: () =>
     pesquisar('')
   }, [])
 
-  const catalogoPorCategoria = useMemo(() => agruparPorCategoria(itensCatalogo), [itensCatalogo])
+  const catalogoDoTipoEdicao = useMemo(
+    () => itensCatalogo.filter((i) => i.categoria === edTipo),
+    [itensCatalogo, edTipo]
+  )
+  const catalogoPorSubcategoriaEdicao = useMemo(
+    () => agruparPorSubcategoria(catalogoDoTipoEdicao),
+    [catalogoDoTipoEdicao]
+  )
   const mapaCatalogo = useMemo(() => new Map(itensCatalogo.map((i) => [i.id, i])), [itensCatalogo])
 
   async function pesquisar(t: string) {
@@ -162,6 +171,8 @@ export function BuscarOrcamento({ onVoltar: _onVoltarInicio }: { onVoltar: () =>
     setEdNomeProjeto(selecionado.observacoes ?? '')
     setEdTipo(selecionado.tipo)
     setEdItens(selecionado.itens.map((i) => ({ ...i })))
+    setEdCatalogoSelecionado(selecionado.itens.map(() => null))
+    setEdMostrarObs(selecionado.itens.map((i) => !!i.observacao?.trim()))
     setEdDias(selecionado.dias)
     setEdNumTecnicos(selecionado.num_tecnicos)
     setEdDesconto(selecionado.desconto)
@@ -193,12 +204,16 @@ export function BuscarOrcamento({ onVoltar: _onVoltarInicio }: { onVoltar: () =>
     const ultimaSecao = edItens[edItens.length - 1]?.secao ?? null
     setEdItens((prev) => [
       ...prev,
-      { descricao: '', quantidade: 1, valor_unitario: 0, dificuldade_id: padrao?.id ?? null, ordem: 0, secao: ultimaSecao },
+      { descricao: '', quantidade: 1, valor_unitario: 0, dificuldade_id: padrao?.id ?? null, ordem: 0, secao: ultimaSecao, observacao: '' },
     ])
+    setEdCatalogoSelecionado((prev) => [...prev, null])
+    setEdMostrarObs((prev) => [...prev, false])
   }
 
   function removerEdItem(idx: number) {
     setEdItens((prev) => prev.filter((_, i) => i !== idx))
+    setEdCatalogoSelecionado((prev) => prev.filter((_, i) => i !== idx))
+    setEdMostrarObs((prev) => prev.filter((_, i) => i !== idx))
   }
 
   async function salvarEdicao() {
@@ -336,46 +351,54 @@ export function BuscarOrcamento({ onVoltar: _onVoltarInicio }: { onVoltar: () =>
               <p className="text-[11px] tracking-wide text-graphite mb-4">ITENS</p>
               <div className="space-y-5 mb-4">
                 {edItens.map((item, idx) => (
-                  <div key={idx} className="border border-line p-5">
-                    {itensCatalogo.length > 0 && (
-                      <div className="mb-4">
-                        <SelectField
-                          label="Item predefinido (opcional — preenche descrição e valor)"
-                          value=""
-                          onChange={(v) => {
-                            const escolhido = mapaCatalogo.get(v)
-                            if (!escolhido) return
-                            atualizarEdItem(idx, {
-                              descricao: escolhido.nome,
-                              valor_unitario: escolhido.valor_unitario,
-                            })
-                          }}
-                        >
-                          <option value="">— Selecionar um item predefinido —</option>
-                          {Array.from(catalogoPorCategoria.entries()).map(([categoria, itensDaCategoria]) => (
-                            <optgroup key={categoria} label={categoria}>
-                              {itensDaCategoria.map((ic) => (
-                                <option key={ic.id} value={ic.id}>{ic.nome}</option>
-                              ))}
-                            </optgroup>
-                          ))}
-                        </SelectField>
-                      </div>
-                    )}
-                    <div className="grid sm:grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <span className="block text-[11px] tracking-wide text-graphite mb-1.5">Seção (opcional)</span>
-                        <input
-                          value={item.secao ?? ''}
-                          onChange={(e) => atualizarEdItem(idx, { secao: e.target.value })}
-                          placeholder="Ex: Quarto, Sala…"
-                          maxLength={TEXTO_MAXIMO_PADRAO}
-                          className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink placeholder:text-graphite/40 focus:outline-none focus:border-brass transition-colors"
-                        />
-                      </div>
-                      <Field label="Descrição" value={item.descricao} onChange={(e) => atualizarEdItem(idx, { descricao: e.target.value })} maxLength={TEXTO_MAXIMO_PADRAO} />
+                  <div key={idx} className="border border-line p-4">
+                    <div className="mb-3">
+                      <span className="block text-[11px] tracking-wide text-graphite mb-1.5">Seção (opcional)</span>
+                      <input
+                        value={item.secao ?? ''}
+                        onChange={(e) => atualizarEdItem(idx, { secao: e.target.value })}
+                        placeholder="Ex: Quarto, Sala…"
+                        maxLength={TEXTO_MAXIMO_PADRAO}
+                        className="w-full border-0 border-b border-line bg-transparent py-2 text-sm text-ink placeholder:text-graphite/40 focus:outline-none focus:border-brass transition-colors"
+                      />
                     </div>
-                    <div className="grid grid-cols-3 gap-4 mb-4">
+
+                    <div className="mb-1">
+                      <SelectField
+                        label=""
+                        value={edCatalogoSelecionado[idx] ?? ''}
+                        onChange={(v) => {
+                          setEdCatalogoSelecionado((prev) => prev.map((c, i) => (i === idx ? v || null : c)))
+                          const escolhido = mapaCatalogo.get(v)
+                          if (!escolhido) return
+                          atualizarEdItem(idx, {
+                            descricao: escolhido.nome,
+                            valor_unitario: escolhido.valor_unitario,
+                          })
+                        }}
+                      >
+                        <option value="">Adicionar novo item</option>
+                        {Array.from(catalogoPorSubcategoriaEdicao.entries()).map(([subcategoria, itensDoGrupo]) => (
+                          <optgroup key={subcategoria} label={subcategoria}>
+                            {itensDoGrupo.map((ic) => (
+                              <option key={ic.id} value={ic.id}>{ic.nome}</option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </SelectField>
+                    </div>
+                    {catalogoDoTipoEdicao.length === 0 && (
+                      <p className="text-[11px] text-graphite/70 mb-3">
+                        Nenhum item cadastrado para {edTipo} — adicione em Configurações.
+                      </p>
+                    )}
+                    {item.descricao && (
+                      <p className="text-xs text-graphite mb-3">
+                        Item: <span className="text-ink">{item.descricao}</span>
+                      </p>
+                    )}
+
+                    <div className="grid grid-cols-3 gap-3 mb-3">
                       <NumberField label="Quantidade" min={0} value={item.quantidade} onChange={(v) => atualizarEdItem(idx, { quantidade: v })} />
                       <MoneyField label="Valor unitário (R$)" max={VALOR_MAXIMO_REAIS} value={item.valor_unitario} onChange={(v) => atualizarEdItem(idx, { valor_unitario: v })} />
                       <SelectField label="Dificuldade" value={item.dificuldade_id ?? ''} onChange={(v) => atualizarEdItem(idx, { dificuldade_id: v })}>
@@ -384,13 +407,27 @@ export function BuscarOrcamento({ onVoltar: _onVoltarInicio }: { onVoltar: () =>
                         ))}
                       </SelectField>
                     </div>
-                    <Field
-                      label="Observação do item (opcional)"
-                      value={item.observacao ?? ''}
-                      onChange={(e) => atualizarEdItem(idx, { observacao: e.target.value })}
-                      placeholder="Ex: Inclui material, não inclui andaime…"
-                      maxLength={OBSERVACAO_ITEM_MAXIMO}
+
+                    <ToggleField
+                      label="Adicionar observação a este item"
+                      checked={edMostrarObs[idx] ?? false}
+                      onChange={(v) => {
+                        setEdMostrarObs((prev) => prev.map((m, i) => (i === idx ? v : m)))
+                        if (!v) atualizarEdItem(idx, { observacao: '' })
+                      }}
                     />
+                    {edMostrarObs[idx] && (
+                      <div className="mt-3">
+                        <Field
+                          label="Observação do item"
+                          value={item.observacao ?? ''}
+                          onChange={(e) => atualizarEdItem(idx, { observacao: e.target.value })}
+                          placeholder="Ex: Inclui material, não inclui andaime…"
+                          maxLength={OBSERVACAO_ITEM_MAXIMO}
+                        />
+                      </div>
+                    )}
+
                     <div className="flex justify-between items-center mt-4 pt-4 border-t border-line">
                       <span className="text-xs text-graphite">
                         Total do item:{' '}

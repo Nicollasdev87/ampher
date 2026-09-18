@@ -37,6 +37,26 @@ create table if not exists dificuldades (
 );
 
 -- ------------------------------------------------------------
+-- Tabela: clientes
+-- Cadastro de clientes, reutilizável entre orçamentos: nome,
+-- telefones (múltiplos, por isso o array) e localização (endereço em
+-- texto + latitude/longitude marcadas no mapa, ambos opcionais).
+-- ------------------------------------------------------------
+create table if not exists clientes (
+  id uuid primary key default gen_random_uuid(),
+  nome text not null,
+  telefones text[] not null default '{}',
+  endereco text,
+  latitude double precision,
+  longitude double precision,
+  observacao text,
+  created_at timestamptz not null default now()
+);
+
+create extension if not exists pg_trgm;
+create index if not exists idx_clientes_nome on clientes using gin (nome gin_trgm_ops);
+
+-- ------------------------------------------------------------
 -- Tabela: orcamentos
 -- Um registro por orçamento gerado.
 -- ------------------------------------------------------------
@@ -44,6 +64,7 @@ create table if not exists orcamentos (
   id uuid primary key default gen_random_uuid(),
   numero integer not null unique,
   responsavel text not null,
+  cliente_id uuid references clientes (id) on delete set null,
   cliente_nome text not null,
   cliente_contato text,
   local_servico text,
@@ -97,20 +118,23 @@ create index if not exists idx_itens_orcamento_orcamento_id on itens_orcamento (
 
 -- ------------------------------------------------------------
 -- Tabela: itens_catalogo
--- Itens predefinidos (descrição + valor unitário padrão), agrupados
--- por categoria (texto livre, ex: "Elétrica", "Mecânica"). Usados no
--- select de "item predefinido" ao montar um orçamento, pra padronizar
--- descrições e preços. Editável pela tela de Configurações.
+-- Itens predefinidos (descrição + valor unitário padrão), agrupados por
+-- categoria (mesmo tipo do orçamento: Elétrica / Mecânica / Outros) e
+-- subcategoria (texto livre, ex: "Residencial", "Industrial",
+-- "Comercial"). Usados no select de "item predefinido" ao montar um
+-- orçamento — já filtrado pelo tipo escolhido no passo 1 — pra
+-- padronizar descrições e preços. Editável pela tela de Configurações.
 -- ------------------------------------------------------------
 create table if not exists itens_catalogo (
   id uuid primary key default gen_random_uuid(),
-  categoria text not null,
+  categoria text not null check (categoria in ('Elétrica', 'Mecânica', 'Outros')),
+  subcategoria text not null default 'Geral',
   nome text not null,
   valor_unitario numeric(12,2) not null default 0,
   created_at timestamptz not null default now()
 );
 
-create index if not exists idx_itens_catalogo_categoria on itens_catalogo (categoria);
+create index if not exists idx_itens_catalogo_categoria on itens_catalogo (categoria, subcategoria);
 
 -- ============================================================
 -- Row Level Security
@@ -125,6 +149,7 @@ create index if not exists idx_itens_catalogo_categoria on itens_catalogo (categ
 
 alter table config enable row level security;
 alter table dificuldades enable row level security;
+alter table clientes enable row level security;
 alter table orcamentos enable row level security;
 alter table itens_orcamento enable row level security;
 alter table itens_catalogo enable row level security;
@@ -133,6 +158,9 @@ create policy "acesso total config" on config
   for all using (true) with check (true);
 
 create policy "acesso total dificuldades" on dificuldades
+  for all using (true) with check (true);
+
+create policy "acesso total clientes" on clientes
   for all using (true) with check (true);
 
 create policy "acesso total orcamentos" on orcamentos
@@ -165,11 +193,11 @@ where not exists (select 1 from dificuldades);
 
 -- Itens de catálogo de exemplo — edite, renomeie ou apague pela tela de
 -- Configurações (aba "Itens predefinidos").
-insert into itens_catalogo (categoria, nome, valor_unitario)
+insert into itens_catalogo (categoria, subcategoria, nome, valor_unitario)
 select * from (values
-  ('Elétrica', 'Instalação de disjuntor monofásico', 80.00),
-  ('Elétrica', 'Instalação de disjuntor trifásico', 150.00),
-  ('Elétrica', 'Instalação de tomada 20A', 60.00),
-  ('Mecânica', 'Manutenção preventiva de motor', 250.00)
-) as v(categoria, nome, valor_unitario)
+  ('Elétrica', 'Residencial', 'Instalação de disjuntor monofásico', 80.00),
+  ('Elétrica', 'Industrial', 'Instalação de disjuntor trifásico', 150.00),
+  ('Elétrica', 'Residencial', 'Instalação de tomada 20A', 60.00),
+  ('Mecânica', 'Industrial', 'Manutenção preventiva de motor', 250.00)
+) as v(categoria, subcategoria, nome, valor_unitario)
 where not exists (select 1 from itens_catalogo);

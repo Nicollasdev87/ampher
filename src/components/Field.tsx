@@ -217,10 +217,10 @@ export function SelectField({
 }) {
   return (
     <label className="block">
-      <span className="block text-[11px] tracking-wide text-graphite mb-1.5">{label}</span>
+      {label && <span className="block text-[11px] tracking-wide text-graphite mb-1.5">{label}</span>}
       <div className="relative">
         <select
-          className="w-full border-0 border-b border-line bg-transparent py-2 pr-6 text-sm text-ink focus:outline-none focus:border-brass transition-colors"
+          className="w-full border-0 border-b border-line bg-paper py-2 pr-6 text-sm text-ink focus:outline-none focus:border-brass transition-colors [color-scheme:light] dark:[color-scheme:dark]"
           value={value}
           onChange={(e) => onChange(e.target.value)}
         >
@@ -232,7 +232,42 @@ export function SelectField({
   )
 }
 
-function IconeChevron({ className = '' }: { className?: string }) {
+interface ToggleFieldProps {
+  label: string
+  checked: boolean
+  onChange: (v: boolean) => void
+}
+
+/**
+ * Toggle (switch) no mesmo tema do app — usado, por exemplo, pra mostrar
+ * o campo de observação de um item só quando a pessoa quiser.
+ */
+export function ToggleField({ label, checked, onChange }: ToggleFieldProps) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="flex items-center gap-3 group"
+    >
+      <span
+        className={`relative inline-flex h-[26px] w-[46px] shrink-0 items-center rounded-full transition-colors ${
+          checked ? 'bg-brass' : 'bg-line'
+        }`}
+      >
+        <span
+          className={`inline-block h-[22px] w-[22px] translate-x-0.5 rounded-full bg-paper shadow transition-transform ${
+            checked ? 'translate-x-[21px]' : 'translate-x-0.5'
+          }`}
+        />
+      </span>
+      <span className="text-[13px] text-graphite group-hover:text-ink transition-colors">{label}</span>
+    </button>
+  )
+}
+
+export function IconeChevron({ className = '' }: { className?: string }) {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
       <path d="m6 9 6 6 6-6" />

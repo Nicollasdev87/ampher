@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Home } from './screens/Home'
 import { NovoOrcamento } from './screens/NovoOrcamento'
 import { BuscarOrcamento } from './screens/BuscarOrcamento'
+import { Clientes } from './screens/Clientes'
 import { Configuracoes } from './screens/Configuracoes'
 import { Sidebar, type Tela } from './components/Sidebar'
 import { useDarkMode } from './hooks/useDarkMode'
@@ -25,14 +26,19 @@ function App() {
 
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Barra superior só no mobile — abre o menu lateral em cima do conteúdo */}
-        <div className="sm:hidden flex items-center gap-3 px-5 pt-safe pb-4 border-b border-line">
-          <button onClick={() => setMenuAberto(true)} className="p-1 -ml-1 text-ink" aria-label="Abrir menu">
+        <div className="sm:hidden grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-5 pt-safe pb-4 border-b border-line">
+          <button
+            onClick={() => setMenuAberto(true)}
+            className="justify-self-start p-1 -ml-1 text-ink"
+            aria-label="Abrir menu"
+          >
             <IconeMenu />
           </button>
-          <button onClick={() => setTela('home')} className="flex items-center gap-2">
+          <button onClick={() => setTela('home')} className="flex items-center gap-2 justify-self-center">
             <img src={logoIcon} alt="Ampher" className="h-6 w-6 object-contain dark:invert" />
             <span className="font-display font-semibold text-sm tracking-wide">AMPHER</span>
           </button>
+          <span aria-hidden="true" />
         </div>
 
         <div className="flex-1 min-w-0">
@@ -45,6 +51,7 @@ function App() {
           )}
           {tela === 'novo' && <NovoOrcamento onVoltar={() => setTela('home')} />}
           {tela === 'buscar' && <BuscarOrcamento onVoltar={() => setTela('home')} />}
+          {tela === 'clientes' && <Clientes onVoltar={() => setTela('home')} />}
           {tela === 'config' && <Configuracoes onVoltar={() => setTela('home')} />}
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Config, Dificuldade, Orcamento, OrcamentoCompleto, ItemOrcamento, ItemCatalogo } from './types'
+import type { Cliente, Config, Dificuldade, Orcamento, OrcamentoCompleto, ItemOrcamento, ItemCatalogo } from './types'
 
 // ---------- Config ----------
 
@@ -75,12 +75,13 @@ export async function listarItensCatalogo(): Promise<ItemCatalogo[]> {
 
 export async function criarItemCatalogo(
   categoria: string,
+  subcategoria: string,
   nome: string,
   valor_unitario: number
 ): Promise<ItemCatalogo> {
   const { data, error } = await supabase
     .from('itens_catalogo')
-    .insert({ categoria, nome, valor_unitario })
+    .insert({ categoria, subcategoria, nome, valor_unitario })
     .select()
     .single()
   if (error) throw error
@@ -89,7 +90,7 @@ export async function criarItemCatalogo(
 
 export async function atualizarItemCatalogo(
   id: string,
-  patch: Partial<Pick<ItemCatalogo, 'categoria' | 'nome' | 'valor_unitario'>>
+  patch: Partial<Pick<ItemCatalogo, 'categoria' | 'subcategoria' | 'nome' | 'valor_unitario'>>
 ): Promise<ItemCatalogo> {
   const { data, error } = await supabase
     .from('itens_catalogo')
@@ -103,6 +104,36 @@ export async function atualizarItemCatalogo(
 
 export async function removerItemCatalogo(id: string): Promise<void> {
   const { error } = await supabase.from('itens_catalogo').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ---------- Clientes ----------
+
+export async function listarClientes(): Promise<Cliente[]> {
+  const { data, error } = await supabase.from('clientes').select('*').order('nome', { ascending: true })
+  if (error) throw error
+  return data as Cliente[]
+}
+
+export async function criarCliente(
+  cliente: Pick<Cliente, 'nome' | 'telefones' | 'endereco' | 'latitude' | 'longitude' | 'observacao'>
+): Promise<Cliente> {
+  const { data, error } = await supabase.from('clientes').insert(cliente).select().single()
+  if (error) throw error
+  return data as Cliente
+}
+
+export async function atualizarCliente(
+  id: string,
+  patch: Partial<Pick<Cliente, 'nome' | 'telefones' | 'endereco' | 'latitude' | 'longitude' | 'observacao'>>
+): Promise<Cliente> {
+  const { data, error } = await supabase.from('clientes').update(patch).eq('id', id).select().single()
+  if (error) throw error
+  return data as Cliente
+}
+
+export async function removerCliente(id: string): Promise<void> {
+  const { error } = await supabase.from('clientes').delete().eq('id', id)
   if (error) throw error
 }
 

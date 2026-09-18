@@ -41,10 +41,20 @@ export function calcularOrcamento(params: {
   dificuldades: Dificuldade[]
   dias: number
   numTecnicos: number
+  /**
+   * Quantos técnicos entram no cálculo da diária técnica. Existe separado
+   * de `numTecnicos` por causa da pergunta "terá técnico adicional?": se a
+   * resposta for "não", a diária técnica é 0, mas refeição e deslocamento
+   * continuam sendo calculados normalmente (usando `numTecnicos`, que já
+   * conta o técnico responsável). Se omitido, cai no comportamento antigo
+   * (usa o mesmo valor de `numTecnicos`).
+   */
+  numTecnicosDiaria?: number
   desconto: number
   config: Config
 }): ResultadoCalculo {
   const { itens, dificuldades, dias, numTecnicos, desconto, config } = params
+  const numTecnicosDiaria = params.numTecnicosDiaria ?? numTecnicos
 
   const mapaDificuldades = new Map(dificuldades.map((d) => [d.id, d]))
 
@@ -56,9 +66,10 @@ export function calcularOrcamento(params: {
   // Deslocamento: valor fixo por dia (considera-se um único deslocamento por dia de execução).
   const valorDeslocamentoTotal = dias * (config.valor_deslocamento ?? 0)
 
-  // Refeição e diária de técnico: por técnico, por dia.
+  // Refeição: por técnico, por dia — considera todos os técnicos normalmente.
   const valorRefeicaoTotal = dias * numTecnicos * (config.valor_refeicao ?? 0)
-  const valorDiariaTecnicosTotal = dias * numTecnicos * (config.valor_diaria_tecnico ?? 0)
+  // Diária técnica: só entra para técnicos adicionais (0 se não houver).
+  const valorDiariaTecnicosTotal = dias * numTecnicosDiaria * (config.valor_diaria_tecnico ?? 0)
 
   const subtotalGeral =
     subtotalItens + valorDeslocamentoTotal + valorRefeicaoTotal + valorDiariaTecnicosTotal
