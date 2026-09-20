@@ -1,5 +1,15 @@
 import { supabase } from './supabase'
-import type { Cliente, Config, Dificuldade, Orcamento, OrcamentoCompleto, ItemOrcamento, ItemCatalogo, Usuario } from './types'
+import type {
+  Cliente,
+  Config,
+  Dificuldade,
+  Orcamento,
+  OrcamentoCompleto,
+  ItemOrcamento,
+  ItemCatalogo,
+  LancamentoCaixa,
+  Usuario,
+} from './types'
 
 // ---------- Usuários (login) ----------
 
@@ -26,6 +36,40 @@ export async function criarUsuario(dados: { nome: string; usuario: string; senha
 
 export async function atualizarSenhaUsuario(id: string, senha_hash: string): Promise<void> {
   const { error } = await supabase.from('usuarios').update({ senha_hash }).eq('id', id)
+  if (error) throw error
+}
+
+// ---------- Livro caixa ----------
+
+export async function listarLancamentos(intervalo?: { inicio: string; fim: string }): Promise<LancamentoCaixa[]> {
+  let query = supabase.from('lancamentos_caixa').select('*').order('data', { ascending: false })
+  if (intervalo) {
+    query = query.gte('data', intervalo.inicio).lte('data', intervalo.fim)
+  }
+  const { data, error } = await query
+  if (error) throw error
+  return data as LancamentoCaixa[]
+}
+
+export async function criarLancamento(
+  dados: Pick<LancamentoCaixa, 'tipo' | 'categoria' | 'descricao' | 'valor' | 'data' | 'observacao'>
+): Promise<LancamentoCaixa> {
+  const { data, error } = await supabase.from('lancamentos_caixa').insert(dados).select().single()
+  if (error) throw error
+  return data as LancamentoCaixa
+}
+
+export async function atualizarLancamento(
+  id: string,
+  patch: Partial<Pick<LancamentoCaixa, 'tipo' | 'categoria' | 'descricao' | 'valor' | 'data' | 'observacao'>>
+): Promise<LancamentoCaixa> {
+  const { data, error } = await supabase.from('lancamentos_caixa').update(patch).eq('id', id).select().single()
+  if (error) throw error
+  return data as LancamentoCaixa
+}
+
+export async function removerLancamento(id: string): Promise<void> {
+  const { error } = await supabase.from('lancamentos_caixa').delete().eq('id', id)
   if (error) throw error
 }
 

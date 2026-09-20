@@ -1,3 +1,5 @@
+export type TipoOrcamento = 'Elétrica' | 'Mecânica' | 'Outros'
+
 /**
  * Usuário com acesso ao app (login/senha). `senha_hash` só é usado
  * internamente pelas funções de autenticação (lib/auth.ts) — o resto do
@@ -16,8 +18,6 @@ export interface UsuarioSessao {
   nome: string
   usuario: string
 }
-
-export type TipoOrcamento = 'Elétrica' | 'Mecânica' | 'Outros'
 
 export type StatusOrcamento = 'pendente' | 'aprovado' | 'recusado' | 'concluido'
 
@@ -122,4 +122,24 @@ export interface Orcamento {
 
 export interface OrcamentoCompleto extends Orcamento {
   itens: ItemOrcamento[]
+}
+
+// ---------- Livro caixa ----------
+
+export type TipoLancamento = 'entrada' | 'saida'
+
+/**
+ * Lançamento do livro caixa (entrada ou saída). `categoria` é sempre uma
+ * das opções de CATEGORIAS_ENTRADA / CATEGORIAS_SAIDA (lib/livro-caixa.ts),
+ * de acordo com o `tipo` do lançamento.
+ */
+export interface LancamentoCaixa {
+  id: string
+  tipo: TipoLancamento
+  categoria: string
+  descricao: string
+  valor: number
+  data: string // ISO yyyy-mm-dd
+  observacao?: string | null
+  created_at?: string
 }

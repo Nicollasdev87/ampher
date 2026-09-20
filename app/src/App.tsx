@@ -4,6 +4,7 @@ import { NovoOrcamento } from './screens/NovoOrcamento'
 import { BuscarOrcamento } from './screens/BuscarOrcamento'
 import { Clientes } from './screens/Clientes'
 import { Configuracoes } from './screens/Configuracoes'
+import { LivroCaixa } from './screens/LivroCaixa'
 import { Auth } from './screens/Auth'
 import { Sidebar, type Tela } from './components/Sidebar'
 import { useDarkMode } from './hooks/useDarkMode'
@@ -62,7 +63,7 @@ function App() {
             <Home
               onNovo={() => setTela('novo')}
               onBuscar={() => setTela('buscar')}
-              onConfig={() => setTela('config')}
+              onCaixa={() => setTela('caixa')}
             />
           )}
           {tela === 'novo' && (
@@ -70,6 +71,7 @@ function App() {
           )}
           {tela === 'buscar' && <BuscarOrcamento onVoltar={() => setTela('home')} />}
           {tela === 'clientes' && <Clientes onVoltar={() => setTela('home')} />}
+          {tela === 'caixa' && <LivroCaixa onVoltar={() => setTela('home')} />}
           {tela === 'config' && <Configuracoes onVoltar={() => setTela('home')} usuarioLogado={usuario} />}
         </div>
       </div>

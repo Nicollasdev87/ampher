@@ -19,6 +19,8 @@ App simples para criar e consultar orçamentos da Ampher Engenharia & Automaçã
   - Níveis de dificuldade e seus multiplicadores
   - Itens predefinidos do catálogo (nome + valor unitário), organizados por categoria (Elétrica/Mecânica/Outros) e subcategoria
 - O **nível de dificuldade nunca aparece no PDF nem para o cliente** — ele só multiplica o valor unitário internamente, como margem de risco. O PDF mostra apenas o valor final já com isso embutido.
+- **Dashboard** na tela inicial: entradas, saídas e saldo do mês, saídas por categoria e últimos lançamentos — visão rápida do desempenho financeiro da Ampher.
+- **Livro caixa** (tela própria): lançamentos de entrada e saída (compra de ferramentas, impostos, combustível, mão de obra, etc.), navegação por mês, edição e remoção de lançamentos, categorização das saídas.
 - **Login obrigatório**: ninguém acessa o app sem entrar com usuário e senha. Cadastro de conta exige um **código de acesso** (só quem tem esse código consegue criar uma conta nova). Dá pra mostrar/ocultar a senha digitada em qualquer campo de senha, e redefinir a senha (via código de acesso) caso esqueça. Ao criar um orçamento, o nome do responsável já vem preenchido automaticamente com o nome de quem está logado.
 
 ## 0. Login e código de acesso
@@ -33,10 +35,11 @@ App simples para criar e consultar orçamentos da Ampher Engenharia & Automaçã
 
 1. Crie um projeto em [supabase.com](https://supabase.com) (gratuito).
 2. Abra **SQL Editor** no painel do projeto.
-3. Cole todo o conteúdo do arquivo [`sql/schema.sql`](./sql/schema.sql) e rode. Isso cria as 6 tabelas (`usuarios`, `config`, `dificuldades`, `orcamentos`, `itens_orcamento`, `itens_catalogo`), já com uma configuração inicial, 3 níveis de dificuldade e alguns itens de catálogo de exemplo (edite os valores depois pela tela de Configurações do app).
+3. Cole todo o conteúdo do arquivo [`sql/schema.sql`](./sql/schema.sql) e rode. Isso cria as tabelas (`usuarios`, `config`, `dificuldades`, `orcamentos`, `itens_orcamento`, `itens_catalogo`, `lancamentos_caixa`), já com uma configuração inicial, 3 níveis de dificuldade e alguns itens de catálogo de exemplo (edite os valores depois pela tela de Configurações do app).
 
    **Já tinha um banco criado antes dessa versão?** Não precisa rodar o `schema.sql` de novo:
    - Se ainda não tinha a tabela de login, rode [`sql/migration_usuarios.sql`](./sql/migration_usuarios.sql).
+   - Se ainda não tinha o livro caixa, rode [`sql/migration_livro_caixa.sql`](./sql/migration_livro_caixa.sql).
    - Se ainda não tinha o catálogo de itens, rode [`sql/migration_catalogo_e_observacao.sql`](./sql/migration_catalogo_e_observacao.sql).
    - Se já tinha o catálogo (sem subcategoria), rode também [`sql/migration_subcategoria_catalogo.sql`](./sql/migration_subcategoria_catalogo.sql).
    - Se ainda não tinha a tabela de clientes, rode também [`sql/migration_clientes.sql`](./sql/migration_clientes.sql).

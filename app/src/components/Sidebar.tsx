@@ -1,13 +1,14 @@
 import type { ReactElement } from 'react'
 import logoIcon from '../assets/logo-icon.png'
 
-export type Tela = 'home' | 'novo' | 'buscar' | 'clientes' | 'config'
+export type Tela = 'home' | 'novo' | 'buscar' | 'clientes' | 'caixa' | 'config'
 
 const ITENS_NAV: { tela: Tela; icone: (props: { className?: string }) => ReactElement; label: string }[] = [
   { tela: 'home', icone: IconeHome, label: 'Início' },
   { tela: 'novo', icone: IconeNovo, label: 'Criar orçamento' },
   { tela: 'buscar', icone: IconeBuscar, label: 'Verificar orçamento' },
   { tela: 'clientes', icone: IconeClientes, label: 'Clientes' },
+  { tela: 'caixa', icone: IconeCaixa, label: 'Livro caixa' },
 ]
 
 export function Sidebar({
@@ -184,6 +185,16 @@ function IconeClientes({ className = '' }: { className?: string }) {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
       <circle cx="12" cy="8" r="4" />
       <path d="M4 21c0-4 3.5-7 8-7s8 3 8 7" />
+    </svg>
+  )
+}
+
+function IconeCaixa({ className = '' }: { className?: string }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
+      <rect x="2" y="7" width="20" height="14" rx="1" />
+      <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+      <path d="M12 12v4M9.5 14h5" />
     </svg>
   )
 }

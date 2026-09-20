@@ -154,6 +154,28 @@ create table if not exists itens_catalogo (
 
 create index if not exists idx_itens_catalogo_categoria on itens_catalogo (categoria, subcategoria);
 
+-- ------------------------------------------------------------
+-- Tabela: lancamentos_caixa
+-- Livro caixa: entradas e saídas (compra de ferramentas, impostos,
+-- combustível, mão de obra, etc.), usado no dashboard da tela inicial
+-- pra mostrar o desempenho financeiro da Ampher. `categoria` segue as
+-- listas fixas em src/lib/livro-caixa.ts (CATEGORIAS_ENTRADA /
+-- CATEGORIAS_SAIDA), de acordo com o `tipo` do lançamento.
+-- ------------------------------------------------------------
+create table if not exists lancamentos_caixa (
+  id uuid primary key default gen_random_uuid(),
+  tipo text not null check (tipo in ('entrada', 'saida')),
+  categoria text not null,
+  descricao text not null,
+  valor numeric(12, 2) not null check (valor >= 0),
+  data date not null default current_date,
+  observacao text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_lancamentos_caixa_data on lancamentos_caixa (data);
+create index if not exists idx_lancamentos_caixa_tipo on lancamentos_caixa (tipo);
+
 -- ============================================================
 -- Row Level Security
 --
@@ -172,6 +194,7 @@ alter table clientes enable row level security;
 alter table orcamentos enable row level security;
 alter table itens_orcamento enable row level security;
 alter table itens_catalogo enable row level security;
+alter table lancamentos_caixa enable row level security;
 
 create policy "acesso total usuarios" on usuarios
   for all using (true) with check (true);
@@ -192,6 +215,9 @@ create policy "acesso total itens_orcamento" on itens_orcamento
   for all using (true) with check (true);
 
 create policy "acesso total itens_catalogo" on itens_catalogo
+  for all using (true) with check (true);
+
+create policy "acesso total lancamentos_caixa" on lancamentos_caixa
   for all using (true) with check (true);
 
 -- ============================================================

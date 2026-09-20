@@ -1,9 +1,8 @@
 -- ============================================================
 -- AMPHER — Migração: login/senha para acessar o app.
 -- Rode este arquivo no SQL Editor do Supabase se o banco já
--- existia antes dessa versão (login obrigatório).
--- Se você está criando o banco do zero, não precisa rodar este
--- arquivo — ele já está incluído em schema.sql.
+-- existia antes dessa versão. Se você está criando o banco do
+-- zero, não precisa rodar este arquivo — já está em schema.sql.
 -- ============================================================
 
 create table if not exists usuarios (
