@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type { InputHTMLAttributes, ReactNode } from 'react'
 import {
+  contarDigitosEVirgulaAte,
   formatarTelefone,
   formatarValorDigitado,
   numeroParaBufferDigitado,
+  posAposNDigitosEVirgula,
   valorDigitadoParaNumero,
 } from '../lib/formatacao'
 
@@ -119,6 +121,10 @@ interface MoneyFieldProps {
 export function MoneyField({ label, value, onChange, max, placeholder, hint }: MoneyFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const focado = useRef(false)
+  // Guarda a posição de cursor que o próximo render deve aplicar — calculada
+  // no onChange, a partir de quantos dígitos existiam antes do cursor no
+  // texto bruto digitado (ver `posAposNDigitosEVirgula` em lib/formatacao.ts).
+  const proximaPosCursor = useRef<number | null>(null)
   const [texto, setTexto] = useState(() =>
     value === 0 ? '' : formatarValorDigitado(numeroParaBufferDigitado(value))
   )
@@ -131,8 +137,8 @@ export function MoneyField({ label, value, onChange, max, placeholder, hint }: M
 
   useEffect(() => {
     if (focado.current && inputRef.current) {
-      const len = inputRef.current.value.length
-      inputRef.current.setSelectionRange(len, len)
+      const pos = proximaPosCursor.current ?? inputRef.current.value.length
+      inputRef.current.setSelectionRange(pos, pos)
     }
   }, [texto])
 
@@ -149,19 +155,30 @@ export function MoneyField({ label, value, onChange, max, placeholder, hint }: M
           focado.current = true
         }}
         onChange={(e) => {
-          if (e.target.value === '') {
+          const bruto = e.target.value
+          if (bruto === '') {
+            proximaPosCursor.current = 0
             setTexto('')
             onChange(0)
             return
           }
-          const formatado = formatarValorDigitado(e.target.value)
+          // Conta quantos dígitos/vírgula existiam ANTES do cursor no texto
+          // bruto (antes de formatar), pra depois recolocar o cursor no
+          // mesmo ponto "lógico" já formatado — sem isso, o cursor ia
+          // sempre parar no fim do campo e o próximo dígito digitado caía
+          // depois dos centavos em vez de continuar a parte inteira.
+          const cursorBruto = e.target.selectionStart ?? bruto.length
+          const nDigitos = contarDigitosEVirgulaAte(bruto, cursorBruto)
+          const formatado = formatarValorDigitado(bruto)
+          proximaPosCursor.current = posAposNDigitosEVirgula(formatado, nDigitos)
           setTexto(formatado)
-          let novoValor = valorDigitadoParaNumero(e.target.value)
+          let novoValor = valorDigitadoParaNumero(bruto)
           if (max !== undefined) novoValor = Math.min(max, novoValor)
           onChange(novoValor)
         }}
         onBlur={() => {
           focado.current = false
+          proximaPosCursor.current = null
           const valorFinal = max !== undefined ? Math.min(max, value) : value
           setTexto(valorFinal === 0 ? '' : formatarValorDigitado(numeroParaBufferDigitado(valorFinal)))
         }}

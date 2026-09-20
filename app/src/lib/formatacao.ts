@@ -81,6 +81,39 @@ export function numeroParaBufferDigitado(numero: number): string {
 }
 
 /**
+ * Conta quantos caracteres "significativos" (dígitos ou vírgula) existem
+ * numa string até a posição `pos` — usado pra descobrir, antes de formatar,
+ * quantos dígitos o usuário já tinha digitado até onde o cursor estava.
+ */
+export function contarDigitosEVirgulaAte(valor: string, pos: number): number {
+  let total = 0
+  for (let i = 0; i < pos && i < valor.length; i++) {
+    if (/[\d,]/.test(valor[i])) total++
+  }
+  return total
+}
+
+/**
+ * Inverso de `contarDigitosEVirgulaAte`: encontra a posição, na string JÁ
+ * FORMATADA, que fica logo depois do N-ésimo caractere significativo
+ * (dígito ou vírgula). Usado pra recolocar o cursor no lugar certo depois
+ * de reformatar um campo em R$ a cada tecla digitada — sem isso, o cursor
+ * "pula" pro final do campo e os dígitos seguintes acabam caindo depois
+ * dos centavos em vez de continuarem a parte inteira do valor.
+ */
+export function posAposNDigitosEVirgula(valorFormatado: string, n: number): number {
+  if (n <= 0) return 0
+  let total = 0
+  for (let i = 0; i < valorFormatado.length; i++) {
+    if (/[\d,]/.test(valorFormatado[i])) {
+      total++
+      if (total === n) return i + 1
+    }
+  }
+  return valorFormatado.length
+}
+
+/**
  * Formata um telefone brasileiro conforme o usuário digita.
  * Aceita só dígitos (qualquer letra ou símbolo digitado é ignorado) e
  * limita a 11 números (DDD + celular com 9 dígitos).
